@@ -191,7 +191,7 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 <div class="hdr">
   <img class="hdr-logo" src="logo.png" alt="Gravitas Logo"/>
   <div class="hdr-badge">GRAVITAS · AMM · SUITE v2</div>
-  <h1>Medición <em>→</em> AMM <em>+</em> Revenue POE</h1>
+  <h1>Medición <em>→</em> AMM <em>+</em> Ingresos POE</h1>
   <p>// Carga medición · extrae precios POE · calcula ingresos · genera formato AMM · reporte PDF</p>
 </div>
 
@@ -279,10 +279,10 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 
 <!-- ══ STEP 3: REVENUE ══ -->
 <div class="card" id="c3">
-  <div class="card-hdr"><span class="card-num">03</span><span class="card-title">Revenue calculado</span></div>
+  <div class="card-hdr"><span class="card-num">03</span><span class="card-title">Ingresos calculados</span></div>
   <p class="card-sub">kWh generados ÷ 1000 × precio POE (USD/MWh) = USD por hora.</p>
   <div class="stats" id="statsRev">
-    <div class="stat"><span class="sv g" id="rTotal">—</span><span class="sk">Revenue Total</span></div>
+    <div class="stat"><span class="sv g" id="rTotal">—</span><span class="sk">Ingresos Total</span></div>
     <div class="stat"><span class="sv" id="rAvgDay">—</span><span class="sk">Avg/Día USD</span></div>
     <div class="stat"><span class="sv" id="rPrice">—</span><span class="sk">Precio Prom.</span></div>
     <div class="stat"><span class="sv" id="rMWh">—</span><span class="sk">MWh Gen</span></div>
@@ -290,7 +290,7 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
   <div class="tbl-wrap" id="tblRev"></div>
   <div class="chart-wrap" id="chartWrap">
     <div class="chart-box"><div class="chart-lbl">Generación diaria (MWh)</div><canvas id="cGen" height="110"></canvas></div>
-    <div class="chart-box"><div class="chart-lbl">Revenue diario (USD)</div><canvas id="cRev" height="110"></canvas></div>
+    <div class="chart-box"><div class="chart-lbl">Ingresos diarios (USD)</div><canvas id="cRev" height="110"></canvas></div>
   </div>
 </div>
 
@@ -311,7 +311,7 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
     </div>
     <div class="out-card">
       <div class="out-card-title">📄 Informe PDF</div>
-      <div class="out-card-desc">Totales energía y ganancias<br>Gráficas generación y revenue<br>Tabla detallada diaria</div>
+      <div class="out-card-desc">Totales energía y ganancias<br>Gráficas generación e ingresos<br>Tabla detallada diaria</div>
       <button class="btn btn-g" onclick="downloadPDF()">⬇ Generar PDF</button>
     </div>
   </div>
@@ -811,7 +811,7 @@ function computeRevenue(){
 
 function renderRevTable(){
   const{month:fm,year:fy}=medMonth;
-  let html='<table><thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Revenue (USD)</th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Ingresos (USD)</th></tr></thead><tbody>';
   revData.forEach(r=>{
     const[yy,mm,dd]=r.date.split('-');
     html+=`<tr><td>${dd}/${mm}/${yy}</td><td>${r.gen_mwh.toFixed(3)}</td><td>${r.avg_price?r.avg_price.toFixed(2):'—'}</td><td>${fmtUSD(r.rev_usd)}</td></tr>`;
@@ -957,30 +957,30 @@ tr.tot td{font-weight:600;background:#f0f9ff;border-top:2px solid #0088aa;}
 @media print{body{padding:18px;}@page{margin:1.2cm;}}
 </style></head><body>
 <div class="hdr">
-  <div>${logoSrc?`<img class="hdr-logo" src="${logoSrc}" alt="Logo"/>`:''}<div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación y Revenue</h1></div>
+  <div>${logoSrc?`<img class="hdr-logo" src="${logoSrc}" alt="Logo"/>`:''}<div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación e Ingresos</h1></div>
   <div style="text-align:right"><div class="mon">${monLabel}</div><div class="sub">${revData.length} DÍAS · ${medData.length} HORAS</div></div>
 </div>
 <div class="kpi">
-  <div class="kc"><span class="kv">${fmtUSD(totRev)}</span><span class="kk">Revenue Total</span></div>
+  <div class="kc"><span class="kv">${fmtUSD(totRev)}</span><span class="kk">Ingresos Total</span></div>
   <div class="kc"><span class="kv">${totGen.toFixed(2)} MWh</span><span class="kk">Energía Generada</span></div>
   <div class="kc"><span class="kv">${totCons.toFixed(2)} MWh</span><span class="kk">Energía Consumida</span></div>
   <div class="kc"><span class="kv">${avgPrice.toFixed(2)} $/MWh</span><span class="kk">Precio POE Prom.</span></div>
 </div>
 <div class="kpi2">
-  <div class="kc"><span class="kk">Día de mayor revenue</span>
+  <div class="kc"><span class="kk">Día de mayores ingresos</span>
     <span class="kv" style="font-size:14px">${(()=>{const[yy,mm,dd]=maxDay.date.split('-');return dd+'/'+mm+'/'+yy;})()}</span>
     <span class="kk">${fmtUSD(maxDay.rev_usd)} · ${maxDay.gen_mwh.toFixed(2)} MWh</span></div>
-  <div class="kc"><span class="kk">Revenue promedio/día</span>
+  <div class="kc"><span class="kk">Ingresos promedio/día</span>
     <span class="kv" style="font-size:14px">${fmtUSD(totRev/revData.length)}</span>
     <span class="kk">sobre ${revData.length} días</span></div>
 </div>
 <div class="stitle">Generación diaria (MWh)</div>
 <div class="chart"><img src="${imgGen}"/></div>
-<div class="stitle">Revenue diario (USD)</div>
+<div class="stitle">Ingresos diarios (USD)</div>
 <div class="chart"><img src="${imgRev}"/></div>
 <div class="stitle">Detalle diario</div>
 <table>
-<thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Revenue (USD)</th></tr></thead>
+<thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Ingresos (USD)</th></tr></thead>
 <tbody>${rows}</tbody>
 <tfoot><tr class="tot"><td>TOTAL ${monLabel}</td><td>${totGen.toFixed(3)} MWh</td><td>${avgPrice.toFixed(2)}</td><td>${fmtUSD(totRev)}</td></tr></tfoot>
 </table>
