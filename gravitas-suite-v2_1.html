@@ -29,6 +29,7 @@ body::before{content:'';position:fixed;inset:0;
 
 /* HEADER */
 .hdr{margin-bottom:52px;}
+.hdr-logo{height:72px;width:auto;display:block;margin-bottom:16px;}
 .hdr-badge{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
   color:var(--accent);border:1px solid rgba(0,229,255,.3);padding:4px 10px;display:inline-block;margin-bottom:18px;}
 .hdr h1{font-family:var(--mono);font-size:clamp(24px,5vw,38px);font-weight:700;
@@ -188,6 +189,7 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 <div class="wrap">
 
 <div class="hdr">
+  <img class="hdr-logo" src="logo.png" alt="Gravitas Logo"/>
   <div class="hdr-badge">GRAVITAS · AMM · SUITE v2</div>
   <h1>Medición <em>→</em> AMM <em>+</em> Revenue POE</h1>
   <p>// Carga medición · extrae precios POE · calcula ingresos · genera formato AMM · reporte PDF</p>
@@ -877,9 +879,15 @@ function downloadPoeCsv(){
   a.click();URL.revokeObjectURL(url);
 }
 
-function downloadPDF(){
+async function downloadPDF(){
   if(!medData||!revData)return;
   const{year:fy,month:fm}=medMonth;
+  let logoSrc='';
+  try{
+    const resp=await fetch('logo.png');
+    const blob=await resp.blob();
+    logoSrc=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(blob);});
+  }catch(_){}
   const monLabel=MONTHS_ES[fm-1]+' '+fy;
   const totRev=revData.reduce((s,r)=>s+r.rev_usd,0);
   const totGen=revData.reduce((s,r)=>s+r.gen_mwh,0);
@@ -927,6 +935,7 @@ function downloadPDF(){
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans',sans-serif;background:#fff;color:#111;padding:30px;font-size:12px;}
 .hdr{border-bottom:3px solid #000;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;}
+.hdr-logo{height:56px;width:auto;display:block;margin-bottom:8px;}
 .hdr h1{font-size:21px;font-weight:600;letter-spacing:-.02em;}
 .hdr .sub{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#666;letter-spacing:.06em;}
 .hdr .mon{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#0088aa;}
@@ -948,7 +957,7 @@ tr.tot td{font-weight:600;background:#f0f9ff;border-top:2px solid #0088aa;}
 @media print{body{padding:18px;}@page{margin:1.2cm;}}
 </style></head><body>
 <div class="hdr">
-  <div><div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación y Revenue</h1></div>
+  <div>${logoSrc?`<img class="hdr-logo" src="${logoSrc}" alt="Logo"/>`:''}<div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación y Revenue</h1></div>
   <div style="text-align:right"><div class="mon">${monLabel}</div><div class="sub">${revData.length} DÍAS · ${medData.length} HORAS</div></div>
 </div>
 <div class="kpi">
