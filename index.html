@@ -929,7 +929,7 @@ async function downloadPDF(){
     rows+=`<tr><td>${dd}/${mm}/${yy}</td><td>${r.gen_mwh.toFixed(3)}</td><td>${r.avg_price?r.avg_price.toFixed(2):'—'}</td><td>${fmtUSD(r.rev_usd)}</td></tr>`;
   });
 
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Reporte_Gravitas_${MONTHS_ES[fm-1]}_${fy}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
