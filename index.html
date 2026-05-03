@@ -170,6 +170,16 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 .gap-tag{padding:3px 9px;background:rgba(255,209,102,.15);
   font-family:var(--mono);font-size:10px;color:var(--yellow);}
 
+/* NOTES */
+.notes-wrap{margin-top:16px;display:none;}
+.notes-wrap.show{display:block;}
+.notes-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.notes-ta{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);
+  font-family:var(--mono);font-size:12px;padding:12px 14px;resize:vertical;min-height:90px;
+  line-height:1.7;transition:border-color .2s;outline:none;}
+.notes-ta:focus{border-color:var(--accent);}
+.notes-ta::placeholder{color:var(--dim);}
+
 .reset-lnk{font-size:11px;color:var(--dim);cursor:pointer;text-decoration:underline;
   font-family:var(--mono);display:none;margin-top:10px;}
 .reset-lnk:hover{color:var(--red);}
@@ -314,6 +324,10 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
       <div class="out-card-desc">Totales energía y ganancias<br>Gráficas generación e ingresos<br>Tabla detallada diaria</div>
       <button class="btn btn-g" onclick="downloadPDF()">⬇ Generar PDF</button>
     </div>
+  </div>
+  <div class="notes-wrap" id="notesWrap">
+    <div class="notes-lbl">Notas del mes (aparecen en el PDF)</div>
+    <textarea class="notes-ta" id="notesTa" placeholder="Comentarios adicionales sobre la generación del mes…"></textarea>
   </div>
   <span class="reset-lnk" id="resetBtn" onclick="resetAll()">↺ Procesar otro mes</span>
 </div>
@@ -803,6 +817,7 @@ function computeRevenue(){
   setCard(3,'done');
   setCard(4,'active');
   $('outGrid').classList.add('show');
+  $('notesWrap').classList.add('show');
   // Show/hide CSV download button
   $('btnDlCSV').style.opacity = poeCsvRaw ? '1' : '0.3';
   $('resetBtn').style.display='inline-block';
@@ -920,6 +935,7 @@ async function downloadPDF(){
     return c.toDataURL('image/png');
   }
 
+  const notesText=($('notesTa').value||'').trim();
   const imgGen=makeChartUrl(revData.map(r=>r.gen_mwh),'#0088aa');
   const imgRev=makeChartUrl(revData.map(r=>r.rev_usd),'#007744');
 
@@ -953,6 +969,9 @@ th:first-child{text-align:left;}
 td{padding:5px 10px;text-align:right;border-bottom:1px solid #eee;}
 td:first-child{text-align:left;}
 tr.tot td{font-weight:600;background:#f0f9ff;border-top:2px solid #0088aa;}
+.notes-box{margin-top:18px;border:1px solid #e0e0e0;padding:14px 16px;background:#f9f9f9;}
+.notes-box .stitle{margin-top:0;}
+.notes-body{font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:#333;white-space:pre-wrap;line-height:1.7;margin-top:6px;}
 .foot{margin-top:28px;border-top:1px solid #ddd;padding-top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#aaa;display:flex;justify-content:space-between;}
 @media print{body{padding:18px;}@page{margin:1.2cm;}}
 </style></head><body>
@@ -984,6 +1003,7 @@ tr.tot td{font-weight:600;background:#f0f9ff;border-top:2px solid #0088aa;}
 <tbody>${rows}</tbody>
 <tfoot><tr class="tot"><td>TOTAL ${monLabel}</td><td>${totGen.toFixed(3)} MWh</td><td>${avgPrice.toFixed(2)}</td><td>${fmtUSD(totRev)}</td></tr></tfoot>
 </table>
+${notesText?`<div class="notes-box"><div class="stitle">Notas del mes</div><div class="notes-body">${notesText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`:''}
 <div class="foot"><span>GRAVITAS PRINCIPAL · CANALES 8549–8552 · POE USD/MWh</span><span>Generado ${new Date().toLocaleDateString('es-GT')}</span></div>
 <script>window.onload=()=>setTimeout(()=>window.print(),400);<\/script>
 </body></html>`;
@@ -1011,6 +1031,8 @@ function resetAll(){
   $('tblRev').classList.remove('show');$('tblRev').innerHTML='';
   $('chartWrap').classList.remove('show');
   $('outGrid').classList.remove('show');
+  $('notesWrap').classList.remove('show');
+  $('notesTa').value='';
   $('resetBtn').style.display='none';
   $('logBox').classList.remove('show');$('logBox').innerHTML='';
   $('zipChips').innerHTML='';
