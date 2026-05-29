@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gravitas · Suite · Panel Principal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:#080b12; --surface:#0e1320; --surface2:#141a28;
+  --border:#1a2235; --border2:#243048;
+  --accent:#00e5ff; --accent-dim:rgba(0,229,255,.1);
+  --green:#00ff88; --green-dim:rgba(0,255,136,.08);
+  --yellow:#ffd166; --yellow-dim:rgba(255,209,102,.08);
+  --red:#ff4466; --red-dim:rgba(255,68,102,.08);
+  --text:#ccd6f6; --dim:#4a5878; --bright:#e8f0ff;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:48px 24px 100px;}
+
+/* HEADER */
+.hdr{margin-bottom:52px;}
+.hdr-logo{height:72px;width:auto;display:block;margin-bottom:16px;}
+.hdr-badge{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);border:1px solid rgba(0,229,255,.3);padding:4px 10px;display:inline-block;margin-bottom:18px;}
+.hdr h1{font-family:var(--mono);font-size:clamp(24px,5vw,38px);font-weight:700;
+  color:var(--bright);letter-spacing:-.02em;line-height:1.15;}
+.hdr h1 em{color:var(--accent);font-style:normal;}
+.hdr p{font-size:12px;color:var(--dim);margin-top:10px;font-family:var(--mono);}
+
+/* SECTION LABEL */
+.section-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:14px;margin-top:36px;}
+
+/* MODULE CARDS GRID */
+.modules-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:36px;}
+.mod-card{background:var(--surface);border:1px solid var(--border);padding:24px;
+  position:relative;overflow:hidden;transition:border-color .2s;}
+.mod-card::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;
+  background:var(--border2);transition:background .2s;}
+.mod-card:hover{border-color:var(--border2);}
+.mod-card.active-mod::after{background:var(--green);}
+.mod-card.config-mod::after{background:var(--yellow);}
+.mod-icon{font-size:28px;margin-bottom:10px;display:block;}
+.mod-name{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--bright);margin-bottom:4px;}
+.mod-desc{font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:14px;font-family:var(--mono);}
+.mod-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+
+/* BADGES */
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 8px;border:1px solid;}
+.badge-green{color:var(--green);border-color:rgba(0,255,136,.3);background:var(--green-dim);}
+.badge-yellow{color:var(--yellow);border-color:rgba(255,209,102,.3);background:var(--yellow-dim);}
+
+/* BUTTONS */
+.btn{padding:9px 18px;font-family:var(--mono);font-size:11px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;border:none;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:7px;text-decoration:none;}
+.btn-a{background:var(--accent);color:#000;}
+.btn-a:hover{background:#33eeff;}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border2);}
+.btn-ghost:hover{color:var(--accent);border-color:var(--accent);}
+
+/* QUICK STATS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:36px;}
+.stats-panel{background:var(--surface);border:1px solid var(--border);padding:20px;}
+.stats-panel-title{font-family:var(--mono);font-size:11px;color:var(--accent);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);}
+.stat-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid rgba(26,34,53,.5);}
+.stat-row:last-child{border-bottom:none;}
+.stat-key{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
+.stat-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);}
+.stat-val.g{color:var(--green);}
+.stat-val.r{color:var(--red);}
+.stats-msg{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.7;}
+
+/* SPINNER */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:middle;}
+
+/* SHORTCUT SECTION */
+.shortcut-toggle{font-family:var(--mono);font-size:11px;color:var(--dim);
+  cursor:pointer;background:transparent;border:1px solid var(--border2);
+  padding:6px 14px;letter-spacing:.06em;margin-bottom:10px;}
+.shortcut-toggle:hover{color:var(--accent);border-color:var(--accent);}
+.shortcut-content{display:none;background:var(--surface);border:1px solid var(--border);
+  padding:20px;font-family:var(--mono);font-size:12px;line-height:1.9;}
+.shortcut-content.open{display:block;}
+.shortcut-content h4{font-size:11px;color:var(--accent);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:8px;margin-top:14px;}
+.shortcut-content h4:first-child{margin-top:0;}
+.shortcut-content code{display:block;background:var(--surface2);border:1px solid var(--border2);
+  padding:8px 12px;color:var(--text);font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:4px;}
+.shortcut-content p{color:var(--dim);font-size:11px;}
+
+/* FOOTER */
+.footer{margin-top:56px;border-top:1px solid var(--border);padding-top:16px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;letter-spacing:.04em;}
+
+@media(max-width:600px){
+  .modules-grid{grid-template-columns:1fr;}
+  .stats-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hdr">
+  <img class="hdr-logo" src="logo.png" alt="Gravitas Logo"/>
+  <div class="hdr-badge">GRAVITAS · SUITE · PANEL PRINCIPAL</div>
+  <h1>Gravitas <em>·</em> Suite</h1>
+  <p>// Planta Solar 5 MW · Guatemala · Panel de control</p>
+</div>
+
+<!-- MODULES -->
+<div class="section-lbl">Módulos</div>
+<div class="modules-grid">
+
+  <div class="mod-card active-mod">
+    <span class="mod-icon">⚡</span>
+    <div class="mod-name">AMM: Medición → Ingresos</div>
+    <div class="mod-desc">Convierte medición Gravitas a formato AMM.<br>Calcula ingresos POE. Genera reporte PDF.</div>
+    <div class="mod-footer">
+      <span class="badge badge-green">✅ Activo</span>
+      <a class="btn btn-a" href="index.html">→ Abrir</a>
+    </div>
+  </div>
+
+  <div class="mod-card" id="cardPlanta">
+    <span class="mod-icon">🔧</span>
+    <div class="mod-name">Inventario Planta Solar</div>
+    <div class="mod-desc">Herramientas y consumibles de la planta.<br>Items GVT-XXXX · Sync Google Sheets.</div>
+    <div class="mod-footer">
+      <span class="badge badge-yellow" id="badgePlanta">⚙ Requiere config</span>
+      <a class="btn btn-ghost" href="insumos-planta.html">→ Abrir</a>
+    </div>
+  </div>
+
+  <div class="mod-card" id="cardHincadora">
+    <span class="mod-icon">🏗</span>
+    <div class="mod-name">Inventario Hincadora</div>
+    <div class="mod-desc">Herramientas y consumibles de la hincadora.<br>Items HIN-XXXX · Sync Google Sheets.</div>
+    <div class="mod-footer">
+      <span class="badge badge-yellow" id="badgeHincadora">⚙ Requiere config</span>
+      <a class="btn btn-ghost" href="insumos-hincadora.html">→ Abrir</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- QUICK STATS -->
+<div class="section-lbl">Inventario — Vista Rápida</div>
+<div class="stats-grid">
+
+  <div class="stats-panel">
+    <div class="stats-panel-title">Planta Solar</div>
+    <div id="statsPlanta"><span class="spin"></span></div>
+  </div>
+
+  <div class="stats-panel">
+    <div class="stats-panel-title">Hincadora</div>
+    <div id="statsHincadora"><span class="spin"></span></div>
+  </div>
+
+</div>
+
+<!-- SHORTCUT -->
+<div class="section-lbl">Acceso directo al escritorio</div>
+<button class="shortcut-toggle" onclick="toggleShortcut()">▶ Ver instrucciones</button>
+<div class="shortcut-content" id="shortcutContent">
+  <h4>Windows</h4>
+  <p>Clic derecho en el escritorio → Nuevo → Acceso directo → Target:</p>
+  <code>"C:\Program Files\Google\Chrome\Application\chrome.exe" --app="file:///C:/ruta/a/gravitas-suite/launcher.html"</code>
+  <p style="margin-top:6px;">Reemplazá <code>C:/ruta/a/gravitas-suite/</code> con la ruta real de esta carpeta.</p>
+  <h4>macOS</h4>
+  <p>Opción 1: Arrastrá <code>launcher.html</code> al Dock.<br>
+  Opción 2: Usá Automator → Nueva aplicación → Shell script:</p>
+  <code>open -a "Google Chrome" --args --app="file:///Users/TU_USUARIO/ruta/launcher.html"</code>
+</div>
+
+<div class="footer">
+  <span>GRAVITAS · SUITE · PLANTA SOLAR 5 MW</span>
+  <span>Abrí desde escritorio · local · sin servidor</span>
+</div>
+</div><!-- /wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// SUITE_CONFIG — paste credentials here for quick stats
+// These must match the credentials in each inventory module.
+// Future improvement: extract to a shared config.js file.
+// ══════════════════════════════════════════════════════════════
+const SUITE_CONFIG = {
+  PLANTA: {
+    SHEET_ID:   '',   // same SHEET_ID as in insumos-planta.html
+    API_KEY:    '',   // same API_KEY
+    SHEET_NAME: 'Sheet1',
+  },
+  HINCADORA: {
+    SHEET_ID:   '',   // same SHEET_ID as in insumos-hincadora.html
+    API_KEY:    '',   // same API_KEY
+    SHEET_NAME: 'Sheet1',
+  },
+};
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  checkModuleStatus();
+  loadQuickStats();
+});
+
+function checkModuleStatus() {
+  if (SUITE_CONFIG.PLANTA.SHEET_ID) {
+    document.getElementById('badgePlanta').className = 'badge badge-green';
+    document.getElementById('badgePlanta').textContent = '✅ Activo';
+    document.getElementById('cardPlanta').classList.add('active-mod');
+    document.getElementById('cardPlanta').classList.remove('config-mod');
+  } else {
+    document.getElementById('cardPlanta').classList.add('config-mod');
+  }
+  if (SUITE_CONFIG.HINCADORA.SHEET_ID) {
+    document.getElementById('badgeHincadora').className = 'badge badge-green';
+    document.getElementById('badgeHincadora').textContent = '✅ Activo';
+    document.getElementById('cardHincadora').classList.add('active-mod');
+    document.getElementById('cardHincadora').classList.remove('config-mod');
+  } else {
+    document.getElementById('cardHincadora').classList.add('config-mod');
+  }
+}
+
+async function loadQuickStats() {
+  await Promise.all([
+    fetchStats('PLANTA', 'statsPlanta'),
+    fetchStats('HINCADORA', 'statsHincadora'),
+  ]);
+}
+
+async function fetchStats(key, elId) {
+  const cfg = SUITE_CONFIG[key];
+  const el = document.getElementById(elId);
+  if (!cfg.SHEET_ID || !cfg.API_KEY) {
+    el.innerHTML = `<p class="stats-msg">Configurá las credenciales en <code>${key === 'PLANTA' ? 'insumos-planta.html' : 'insumos-hincadora.html'}</code> y pegá los mismos valores en SUITE_CONFIG arriba.</p>`;
+    return;
+  }
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.SHEET_ID}/values/${encodeURIComponent(cfg.SHEET_NAME)}?key=${cfg.API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const values = data.values || [];
+    let total = 0, disponibles = 0, danados = 0;
+    for (let i = 1; i < values.length; i++) {
+      const r = values[i] || [];
+      if (!(r[1] || '').trim()) continue;
+      total++;
+      const st = (r[6] || '').trim();
+      if (st === 'Disponible') disponibles++;
+      if (st === 'Dañado' || st === 'Descartado/terminado') danados++;
+    }
+    el.innerHTML = `
+      <div class="stat-row"><span class="stat-key">Total items</span><span class="stat-val">${total}</span></div>
+      <div class="stat-row"><span class="stat-key">Disponibles</span><span class="stat-val g">${disponibles}</span></div>
+      <div class="stat-row"><span class="stat-key">Dañados/Descartados</span><span class="stat-val r">${danados}</span></div>
+    `;
+  } catch (e) {
+    el.innerHTML = `<p class="stats-msg" style="color:var(--red);">Error al cargar: ${escHtml(e.message)}</p>`;
+  }
+}
+
+function toggleShortcut() {
+  const c = document.getElementById('shortcutContent');
+  const btn = document.querySelector('.shortcut-toggle');
+  c.classList.toggle('open');
+  btn.textContent = c.classList.contains('open') ? '▼ Ocultar instrucciones' : '▶ Ver instrucciones';
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

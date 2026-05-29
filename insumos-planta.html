@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gravitas · Inventario Planta Solar</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:#080b12; --surface:#0e1320; --surface2:#141a28;
+  --border:#1a2235; --border2:#243048;
+  --accent:#00e5ff; --accent-dim:rgba(0,229,255,.1);
+  --green:#00ff88; --green-dim:rgba(0,255,136,.08);
+  --yellow:#ffd166; --yellow-dim:rgba(255,209,102,.08);
+  --red:#ff4466; --red-dim:rgba(255,68,102,.08);
+  --text:#ccd6f6; --dim:#4a5878; --bright:#e8f0ff;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:48px 24px 100px;}
+
+/* HEADER */
+.hdr{margin-bottom:52px;}
+.hdr-logo{height:72px;width:auto;display:block;margin-bottom:16px;}
+.hdr-badge{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--accent);border:1px solid rgba(0,229,255,.3);padding:4px 10px;display:inline-block;margin-bottom:18px;}
+.hdr h1{font-family:var(--mono);font-size:clamp(24px,5vw,38px);font-weight:700;
+  color:var(--bright);letter-spacing:-.02em;line-height:1.15;}
+.hdr h1 em{color:var(--accent);font-style:normal;}
+.hdr p{font-size:12px;color:var(--dim);margin-top:10px;font-family:var(--mono);}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);padding:28px;
+  margin-bottom:14px;position:relative;overflow:hidden;}
+
+/* INFO BOXES */
+.info{padding:11px 15px;border-left:2px solid var(--accent);
+  background:var(--accent-dim);font-family:var(--mono);font-size:12px;color:var(--text);
+  line-height:1.7;}
+.info.ok{border-color:var(--green);background:var(--green-dim);}
+.info.bad{border-color:var(--red);background:var(--red-dim);color:var(--red);}
+.info.warn{border-color:var(--yellow);background:var(--yellow-dim);}
+.info .lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
+
+/* SETUP BANNER */
+.setup-banner{margin-bottom:20px;}
+.setup-banner h3{font-family:var(--mono);font-size:13px;color:var(--yellow);margin-bottom:8px;}
+.setup-banner ol{margin-left:18px;font-size:12px;color:var(--text);line-height:2;}
+.setup-banner a{color:var(--accent);}
+.setup-banner code{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(0,229,255,.08);padding:1px 5px;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.stat{background:rgba(0,229,255,.04);border:1px solid var(--border);padding:12px;text-align:center;}
+.sv{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);display:block;}
+.sv.g{color:var(--green);}
+.sv.r{color:var(--red);}
+.sv.y{color:var(--yellow);}
+.sk{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-top:3px;display:block;}
+
+/* FILTER TABS */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.tab{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 12px;border:1px solid var(--border2);cursor:pointer;color:var(--dim);
+  transition:all .15s;background:transparent;}
+.tab:hover{color:var(--accent);border-color:var(--accent);}
+.tab.active{color:var(--accent);border-color:var(--accent);background:var(--accent-dim);}
+
+/* SEARCH */
+.search-bar{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);
+  font-family:var(--mono);font-size:12px;padding:10px 14px;outline:none;
+  transition:border-color .2s;margin-bottom:14px;}
+.search-bar:focus{border-color:var(--accent);}
+.search-bar::placeholder{color:var(--dim);}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);
+  max-height:480px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+th{background:var(--surface2);color:var(--accent);padding:8px 12px;text-align:left;
+  border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;
+  font-size:10px;letter-spacing:.05em;cursor:pointer;user-select:none;}
+th:hover{color:var(--bright);}
+th .sort-ico{color:var(--dim);margin-left:4px;}
+td{padding:7px 12px;text-align:left;border-bottom:1px solid rgba(26,34,53,.6);color:var(--text);}
+tr:hover td{background:rgba(255,255,255,.02);}
+.tbl-empty{padding:28px;text-align:center;color:var(--dim);font-family:var(--mono);font-size:12px;}
+
+/* BADGES */
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;padding:2px 7px;border:1px solid;}
+.badge-green{color:var(--green);border-color:rgba(0,255,136,.3);background:var(--green-dim);}
+.badge-red{color:var(--red);border-color:rgba(255,68,102,.3);background:var(--red-dim);}
+.badge-yellow{color:var(--yellow);border-color:rgba(255,209,102,.3);background:var(--yellow-dim);}
+.badge-dim{color:var(--dim);border-color:var(--border2);background:transparent;}
+.badge-blue{color:#7eb8ff;border-color:rgba(126,184,255,.3);background:rgba(126,184,255,.06);}
+.badge-cyan{color:var(--accent);border-color:rgba(0,229,255,.3);background:var(--accent-dim);}
+
+/* BUTTONS */
+.btn{padding:11px 20px;font-family:var(--mono);font-size:11px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;border:none;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:7px;}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn-a{background:var(--accent);color:#000;}
+.btn-a:hover:not(:disabled){background:#33eeff;}
+.btn-g{background:var(--green);color:#000;}
+.btn-g:hover:not(:disabled){background:#33ffaa;}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border2);}
+.btn-ghost:hover:not(:disabled){color:var(--accent);border-color:var(--accent);}
+.btn-sm{padding:5px 10px;font-size:10px;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center;}
+
+/* SPINNER */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:middle;margin-right:5px;}
+
+/* LOADING OVERLAY */
+.loading-overlay{position:relative;}
+.loading-overlay .overlay{position:absolute;inset:0;background:rgba(8,11,18,.85);
+  display:flex;align-items:center;justify-content:center;z-index:10;
+  font-family:var(--mono);font-size:12px;color:var(--dim);gap:8px;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
+  display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.hidden{display:none;}
+.modal{background:var(--surface);border:1px solid var(--border2);padding:28px;
+  width:100%;max-width:560px;max-height:90vh;overflow-y:auto;position:relative;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.modal-title{font-family:var(--mono);font-size:14px;color:var(--bright);margin-bottom:20px;
+  padding-bottom:12px;border-bottom:1px solid var(--border);}
+.form-row{margin-bottom:14px;}
+.form-row label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:5px;}
+.form-row input,.form-row select,.form-row textarea{width:100%;background:var(--surface2);
+  border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:9px 12px;outline:none;transition:border-color .2s;}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent);}
+.form-row select option{background:var(--surface2);}
+.form-id{font-family:var(--mono);font-size:13px;color:var(--accent);padding:9px 12px;
+  background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.modal-info{margin-top:12px;}
+
+/* AUTH BAR */
+.auth-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;
+  padding:10px 14px;background:var(--surface2);border:1px solid var(--border2);}
+.auth-status{font-family:var(--mono);font-size:11px;color:var(--dim);}
+.auth-status.ok{color:var(--green);}
+
+/* FOOTER */
+.footer{margin-top:56px;border-top:1px solid var(--border);padding-top:16px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;letter-spacing:.04em;}
+
+@media(max-width:600px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hdr">
+  <img class="hdr-logo" src="logo.png" alt="Gravitas Logo"/>
+  <div class="hdr-badge">GRAVITAS · INVENTARIO · PLANTA SOLAR</div>
+  <h1>Inventario <em>→</em> Planta Solar</h1>
+  <p id="hdrSub">// Planta Solar · Registro de Herramientas y Consumibles · Sync con Google Sheets</p>
+</div>
+
+<!-- SETUP BANNER -->
+<div id="setupBanner" class="info warn setup-banner" style="display:none;margin-bottom:20px;">
+  <h3>⚙ Configuración requerida</h3>
+  <p style="margin-bottom:10px;">Abrí este archivo en un editor de texto y completá el bloque <code>CONFIG</code> al inicio del <code>&lt;script&gt;</code>:</p>
+  <ol>
+    <li>Ir a <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a></li>
+    <li>Habilitar la <strong>Google Sheets API</strong></li>
+    <li>Crear una <strong>API Key</strong> → restringir a Sheets API → pegar en <code>API_KEY</code></li>
+    <li>Crear un <strong>OAuth 2.0 Client ID</strong> (tipo: Web application) → Authorized JavaScript origins: agregar <code>null</code> (para archivos locales) → pegar en <code>CLIENT_ID</code></li>
+    <li>Abrir el Google Sheet → copiar el ID del URL (entre <code>/d/</code> y <code>/edit</code>) → pegar en <code>SHEET_ID</code></li>
+    <li>Compartir el Sheet con tu Gmail personal como <strong>Editor</strong></li>
+  </ol>
+  <p style="margin-top:10px;color:var(--yellow);">⚠ Las escrituras requieren OAuth. El CLIENT_ID es necesario para agregar o editar items.</p>
+</div>
+
+<!-- AUTH BAR -->
+<div id="authBar" class="auth-bar" style="display:none;">
+  <span class="auth-status" id="authStatus">Sin sesión OAuth</span>
+  <button class="btn btn-ghost btn-sm" id="btnAuth" onclick="requestAuth()">Iniciar sesión Google</button>
+  <button class="btn btn-ghost btn-sm" id="btnLoad" onclick="loadData()">↺ Recargar</button>
+</div>
+
+<!-- STATS -->
+<div class="stats" id="statsBar" style="display:none;">
+  <div class="stat"><span class="sv" id="sTotalItems">—</span><span class="sk">Total Items</span></div>
+  <div class="stat"><span class="sv g" id="sDisponibles">—</span><span class="sk">Disponibles</span></div>
+  <div class="stat"><span class="sv r" id="sDanados">—</span><span class="sk">Dañados/Descartados</span></div>
+  <div class="stat"><span class="sv y" id="sIncompletos">—</span><span class="sk">Sin nombre</span></div>
+</div>
+
+<!-- CONTROLS -->
+<div id="controls" style="display:none;">
+  <div class="tabs" id="catTabs">
+    <div class="tab active" data-cat="Todos" onclick="filterCat(this)">Todos</div>
+    <div class="tab" data-cat="Herramienta" onclick="filterCat(this)">Herramienta</div>
+    <div class="tab" data-cat="C-herramienta" onclick="filterCat(this)">C-herramienta</div>
+    <div class="tab" data-cat="C-Oficina" onclick="filterCat(this)">C-Oficina</div>
+    <div class="tab" data-cat="Personal" onclick="filterCat(this)">Personal</div>
+  </div>
+  <input type="text" class="search-bar" id="searchInput" placeholder="Buscar por nombre..." oninput="applyFilters()"/>
+  <div class="btn-row" style="margin-bottom:14px;margin-top:0;">
+    <button class="btn btn-a" onclick="openModal(null)">+ Agregar Item</button>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div id="tblArea" class="loading-overlay">
+  <div id="loadingOverlay" class="overlay" style="display:none;">
+    <span class="spin"></span> Cargando inventario...
+  </div>
+  <div class="tbl-wrap" id="tblWrap" style="display:none;">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('id')">ID <span class="sort-ico" id="sort-id"></span></th>
+          <th onclick="sortBy('nombre')">Nombre <span class="sort-ico" id="sort-nombre"></span></th>
+          <th onclick="sortBy('categoria')">Categoría <span class="sort-ico" id="sort-categoria"></span></th>
+          <th onclick="sortBy('stock')">Stock <span class="sort-ico" id="sort-stock"></span></th>
+          <th>Unidades</th>
+          <th onclick="sortBy('precio')">Precio <span class="sort-ico" id="sort-precio"></span></th>
+          <th onclick="sortBy('status')">Status <span class="sort-ico" id="sort-status"></span></th>
+          <th>Fecha Entrega</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ERROR BOX -->
+<div id="errorBox" style="display:none;" class="info bad">
+  <div class="lbl">error</div>
+  <span id="errorMsg"></span>
+  <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="loadData()">↺ Reintentar</button></div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-bg hidden" id="modalBg">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Agregar Item</div>
+    <div class="form-row">
+      <label>Item ID (auto-generado)</label>
+      <div class="form-id" id="formItemId">—</div>
+    </div>
+    <div class="form-row">
+      <label>Nombre *</label>
+      <input type="text" id="fNombre" placeholder="Nombre del item"/>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Categoría</label>
+        <select id="fCategoria">
+          <option>Herramienta</option>
+          <option>C-herramienta</option>
+          <option>C-Oficina</option>
+          <option>Personal</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Status</label>
+        <select id="fStatus">
+          <option>Disponible</option>
+          <option>Dañado</option>
+          <option>Descartado/terminado</option>
+          <option>Entregado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Stock *</label>
+        <input type="number" id="fStock" min="0" placeholder="0"/>
+      </div>
+      <div class="form-row">
+        <label>Unidades</label>
+        <select id="fUnidades">
+          <option>Unidades</option>
+          <option>Litros</option>
+          <option>Galones</option>
+          <option>Metros</option>
+          <option>Kilogramos</option>
+          <option>Cajas</option>
+          <option>Pares</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Precio (Quetzales)</label>
+      <input type="number" id="fPrecio" min="0" step="0.01" placeholder="0.00"/>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Fecha entrega (DD/MM/YYYY)</label>
+        <input type="text" id="fFechaEntrega" placeholder="DD/MM/YYYY"/>
+      </div>
+      <div class="form-row">
+        <label>Fecha de baja (DD/MM/YYYY)</label>
+        <input type="text" id="fFechaBaja" placeholder="DD/MM/YYYY (opcional)"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Vida util (dias)</label>
+      <input type="number" id="fVidaUtil" min="0" placeholder="(opcional)"/>
+    </div>
+    <div id="modalInfo" class="modal-info"></div>
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-g" id="btnGuardar" onclick="saveItem()">Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span>GRAVITAS PRINCIPAL · INVENTARIO PLANTA SOLAR · GVT-XXXX</span>
+  <span>100% local · sync Google Sheets</span>
+</div>
+</div><!-- /wrap -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG — paste your credentials here
+// ══════════════════════════════════════════════════════════════
+const CONFIG = {
+  SHEET_ID:   '',           // paste your Sheet ID (from URL: /d/SHEET_ID/edit)
+  API_KEY:    '',           // paste your Google API key (restricted to Sheets API)
+  CLIENT_ID:  '',           // paste your OAuth 2.0 Client ID (.apps.googleusercontent.com)
+  SHEET_NAME: 'Sheet1',
+  ID_PREFIX:  'GVT',
+  ID_PADDING: 4,            // GVT-0001
+  SITE_LABEL: 'Planta Solar',
+  MAX_ROWS:   465,
+};
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let allRows      = [];   // parsed row objects from sheet
+let filteredRows = [];   // after category + search filters
+let sortCol      = 'id';
+let sortAsc      = true;
+let activeCat    = 'Todos';
+let editRowIndex = null; // 1-based sheet row number when editing
+let accessToken  = null;
+let tokenClient  = null;
+
+const $ = id => document.getElementById(id);
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  const configured = CONFIG.SHEET_ID && CONFIG.API_KEY;
+  if (!configured) {
+    $('setupBanner').style.display = 'block';
+    $('hdrSub').textContent = `// ${CONFIG.SITE_LABEL} · Configuración pendiente`;
+  } else {
+    $('authBar').style.display = 'flex';
+    initOAuth();
+    loadData();
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// OAUTH
+// ══════════════════════════════════════════════════════════════
+function initOAuth() {
+  if (!CONFIG.CLIENT_ID) return;
+  // Wait for GSI script to load
+  const tryInit = () => {
+    if (typeof google !== 'undefined' && google.accounts) {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CONFIG.CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        callback: (resp) => {
+          if (resp.error) {
+            showModalInfo('Error de autenticación: ' + resp.error, 'bad');
+            return;
+          }
+          accessToken = resp.access_token;
+          $('authStatus').textContent = '✓ Sesión activa';
+          $('authStatus').className = 'auth-status ok';
+          $('btnAuth').textContent = 'Renovar sesión';
+        },
+      });
+    } else {
+      setTimeout(tryInit, 300);
+    }
+  };
+  tryInit();
+}
+
+function requestAuth() {
+  if (!tokenClient) {
+    if (!CONFIG.CLIENT_ID) {
+      alert('CLIENT_ID no configurado. Completá el bloque CONFIG en este archivo.');
+      return;
+    }
+    initOAuth();
+    setTimeout(() => { if (tokenClient) tokenClient.requestAccessToken(); }, 500);
+    return;
+  }
+  tokenClient.requestAccessToken();
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATA LOAD
+// ══════════════════════════════════════════════════════════════
+async function loadData() {
+  if (!CONFIG.SHEET_ID || !CONFIG.API_KEY) return;
+  showLoading(true);
+  hideError();
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(CONFIG.SHEET_NAME)}?key=${CONFIG.API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('Error de autenticación — verificá que el Sheet esté compartido públicamente para lectura y que el API_KEY sea correcto.');
+      }
+      throw new Error(`Error HTTP ${resp.status}: ${resp.statusText}`);
+    }
+    const data = await resp.json();
+    parseSheetData(data.values || []);
+    showLoading(false);
+    $('tblWrap').style.display = 'block';
+    $('controls').style.display = 'block';
+    $('statsBar').style.display = 'grid';
+  } catch (e) {
+    showLoading(false);
+    showError(e.message);
+  }
+}
+
+function parseSheetData(values) {
+  // values[0] is header row, data starts at index 1
+  allRows = [];
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i] || [];
+    const nombre = (r[1] || '').trim();
+    if (!nombre) continue; // skip pre-allocated empty rows
+    allRows.push({
+      rowNum: i + 1,  // 1-based sheet row (header is row 1, so data row i is sheet row i+1)
+      id:          (r[0] || '').trim(),
+      nombre:      nombre,
+      categoria:   (r[2] || '').trim(),
+      precio:      parseFloat(r[3]) || 0,
+      stock:       parseFloat(r[4]) || 0,
+      unidades:    (r[5] || '').trim(),
+      status:      (r[6] || '').trim(),
+      fechaEntrega:(r[7] || '').trim(),
+      fechaBaja:   (r[8] || '').trim(),
+      vidaUtil:    (r[9] || '').trim(),
+    });
+  }
+  updateStats();
+  applyFilters();
+}
+
+function updateStats() {
+  $('sTotalItems').textContent  = allRows.length;
+  $('sDisponibles').textContent = allRows.filter(r => r.status === 'Disponible').length;
+  $('sDanados').textContent     = allRows.filter(r => r.status === 'Dañado' || r.status === 'Descartado/terminado').length;
+  $('sIncompletos').textContent = allRows.filter(r => !r.nombre || !r.categoria).length;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FILTERS & SORT
+// ══════════════════════════════════════════════════════════════
+function filterCat(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  activeCat = el.dataset.cat;
+  applyFilters();
+}
+
+function applyFilters() {
+  const q = ($('searchInput').value || '').toLowerCase().trim();
+  filteredRows = allRows.filter(r => {
+    const catOk = activeCat === 'Todos' || r.categoria === activeCat;
+    const searchOk = !q || r.nombre.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
+    return catOk && searchOk;
+  });
+  sortRows();
+  renderTable();
+}
+
+function sortBy(col) {
+  if (sortCol === col) {
+    sortAsc = !sortAsc;
+  } else {
+    sortCol = col;
+    sortAsc = true;
+  }
+  sortRows();
+  renderTable();
+  updateSortIcons();
+}
+
+function sortRows() {
+  filteredRows.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (sortCol === 'precio' || sortCol === 'stock') {
+      va = parseFloat(va) || 0;
+      vb = parseFloat(vb) || 0;
+      return sortAsc ? va - vb : vb - va;
+    }
+    va = String(va).toLowerCase();
+    vb = String(vb).toLowerCase();
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+}
+
+function updateSortIcons() {
+  ['id','nombre','categoria','stock','precio','status'].forEach(c => {
+    const el = $('sort-' + c);
+    if (!el) return;
+    el.textContent = sortCol === c ? (sortAsc ? '↑' : '↓') : '';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ══════════════════════════════════════════════════════════════
+function statusBadge(s) {
+  const map = {
+    'Disponible':            'badge-green',
+    'Dañado':                'badge-red',
+    'Descartado/terminado':  'badge-dim',
+    'Entregado':             'badge-yellow',
+  };
+  const cls = map[s] || 'badge-dim';
+  return `<span class="badge ${cls}">${escHtml(s)}</span>`;
+}
+
+function catBadge(c) {
+  const map = {
+    'Herramienta':   'badge-cyan',
+    'C-herramienta': 'badge-blue',
+    'C-Oficina':     'badge-yellow',
+    'Personal':      'badge-green',
+  };
+  const cls = map[c] || 'badge-dim';
+  return `<span class="badge ${cls}">${escHtml(c)}</span>`;
+}
+
+function renderTable() {
+  const tbody = $('tableBody');
+  if (!filteredRows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="tbl-empty">No hay items para mostrar.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filteredRows.map(r => `
+    <tr>
+      <td style="font-family:var(--mono);color:var(--dim);font-size:10px;">${escHtml(r.id)}</td>
+      <td>${escHtml(r.nombre)}</td>
+      <td>${catBadge(r.categoria)}</td>
+      <td style="font-family:var(--mono);">${r.stock}</td>
+      <td style="color:var(--dim);font-size:10px;">${escHtml(r.unidades)}</td>
+      <td style="font-family:var(--mono);">Q ${fmtNum(r.precio)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td style="color:var(--dim);font-size:10px;">${escHtml(r.fechaEntrega)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openModal(${r.rowNum})">✏ Editar</button></td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════════════
+function openModal(rowNum) {
+  editRowIndex = rowNum;
+  clearModalInfo();
+  if (rowNum === null) {
+    // Add mode
+    $('modalTitle').textContent = 'Agregar Item';
+    const nextId = getNextId();
+    $('formItemId').textContent = nextId;
+    $('fNombre').value = '';
+    $('fCategoria').value = 'Herramienta';
+    $('fStatus').value = 'Disponible';
+    $('fStock').value = '';
+    $('fUnidades').value = 'Unidades';
+    $('fPrecio').value = '';
+    $('fFechaEntrega').value = '';
+    $('fFechaBaja').value = '';
+    $('fVidaUtil').value = '';
+  } else {
+    // Edit mode
+    const row = allRows.find(r => r.rowNum === rowNum);
+    if (!row) return;
+    $('modalTitle').textContent = 'Editar Item';
+    $('formItemId').textContent = row.id;
+    $('fNombre').value = row.nombre;
+    $('fCategoria').value = row.categoria || 'Herramienta';
+    $('fStatus').value = row.status || 'Disponible';
+    $('fStock').value = row.stock;
+    $('fUnidades').value = row.unidades || 'Unidades';
+    $('fPrecio').value = row.precio || '';
+    $('fFechaEntrega').value = row.fechaEntrega;
+    $('fFechaBaja').value = row.fechaBaja;
+    $('fVidaUtil').value = row.vidaUtil;
+  }
+  $('modalBg').classList.remove('hidden');
+}
+
+function closeModal() {
+  $('modalBg').classList.add('hidden');
+  editRowIndex = null;
+}
+
+function getNextId() {
+  // Find first pre-allocated row where nombre is empty
+  // We use MAX_ROWS as upper bound and find the first gap in our allRows
+  const usedNums = new Set(
+    allRows.map(r => {
+      const m = r.id.match(new RegExp(`^${CONFIG.ID_PREFIX}-(\\d+)$`));
+      return m ? parseInt(m[1]) : null;
+    }).filter(n => n !== null)
+  );
+  for (let i = 1; i <= CONFIG.MAX_ROWS; i++) {
+    if (!usedNums.has(i)) {
+      return `${CONFIG.ID_PREFIX}-${String(i).padStart(CONFIG.ID_PADDING, '0')}`;
+    }
+  }
+  return `${CONFIG.ID_PREFIX}-${String(CONFIG.MAX_ROWS + 1).padStart(CONFIG.ID_PADDING, '0')}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAVE ITEM
+// ══════════════════════════════════════════════════════════════
+async function saveItem() {
+  if (!CONFIG.SHEET_ID) { showModalInfo('SHEET_ID no configurado.', 'bad'); return; }
+  if (!accessToken) {
+    showModalInfo('Se requiere iniciar sesión con Google para escribir. Cerrá este modal, hacé clic en "Iniciar sesión Google" y luego intentá de nuevo.', 'warn');
+    return;
+  }
+
+  const nombre = $('fNombre').value.trim();
+  if (!nombre) { showModalInfo('El campo Nombre es requerido.', 'bad'); return; }
+  const stock = $('fStock').value.trim();
+  if (stock === '') { showModalInfo('El campo Stock es requerido.', 'bad'); return; }
+
+  const btn = $('btnGuardar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Guardando...';
+  clearModalInfo();
+
+  let targetRowNum;
+  let itemId;
+
+  if (editRowIndex === null) {
+    // Find the next empty sheet row (pre-allocated rows have ID but no Nombre)
+    itemId = $('formItemId').textContent;
+    // Find row number of that item ID in the sheet (it's pre-allocated with just the ID)
+    targetRowNum = await findRowForId(itemId);
+    if (!targetRowNum) {
+      // Fallback: append after last data row
+      targetRowNum = allRows.length > 0 ? allRows[allRows.length - 1].rowNum + 1 : 2;
+    }
+  } else {
+    targetRowNum = editRowIndex;
+    itemId = $('formItemId').textContent;
+  }
+
+  const values = [[
+    itemId,
+    nombre,
+    $('fCategoria').value,
+    parseFloat($('fPrecio').value) || 0,
+    parseFloat(stock) || 0,
+    $('fUnidades').value,
+    $('fStatus').value,
+    $('fFechaEntrega').value,
+    $('fFechaBaja').value,
+    $('fVidaUtil').value || '',
+  ]];
+
+  try {
+    const range = `${CONFIG.SHEET_NAME}!A${targetRowNum}:J${targetRowNum}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const msg = (err.error && err.error.message) || `Error HTTP ${resp.status}`;
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('Error de autenticación — verificá que el Sheet esté compartido y que el CLIENT_ID sea correcto. ' + msg);
+      }
+      throw new Error(msg);
+    }
+    showModalInfo('✓ Guardado correctamente.', 'ok');
+    await loadData();
+  } catch (e) {
+    showModalInfo('Error al guardar: ' + e.message, 'bad');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Guardar';
+  }
+}
+
+async function findRowForId(itemId) {
+  // Re-fetch to find the pre-allocated row with this ID (nombre may be empty there)
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(CONFIG.SHEET_NAME + '!A:A')}?key=${CONFIG.API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const col = data.values || [];
+    for (let i = 1; i < col.length; i++) {
+      if ((col[i][0] || '').trim() === itemId) return i + 1;
+    }
+  } catch (_) {}
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function showLoading(on) {
+  $('loadingOverlay').style.display = on ? 'flex' : 'none';
+}
+
+function showError(msg) {
+  $('errorBox').style.display = 'block';
+  $('errorMsg').textContent = msg;
+}
+
+function hideError() {
+  $('errorBox').style.display = 'none';
+}
+
+function showModalInfo(msg, type) {
+  const el = $('modalInfo');
+  el.className = 'modal-info info ' + (type || '');
+  el.innerHTML = msg;
+}
+
+function clearModalInfo() {
+  const el = $('modalInfo');
+  el.className = 'modal-info';
+  el.innerHTML = '';
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtNum(n) {
+  return Number(n || 0).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Close modal on background click
+$('modalBg').addEventListener('click', e => { if (e.target === $('modalBg')) closeModal(); });
+</script>
+</body>
+</html>
