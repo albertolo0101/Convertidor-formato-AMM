@@ -5,6 +5,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Gravitas · Inventario Hincadora</title>
+<script src="config.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
@@ -343,16 +344,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
 // ══════════════════════════════════════════════════════════════
 // CONFIG — paste your credentials here
 // ══════════════════════════════════════════════════════════════
-const CONFIG = {
-  SHEET_ID:   '',           // paste your Hincadora Sheet ID
-  API_KEY:    '',           // paste your Google API key
-  CLIENT_ID:  '',           // paste your OAuth 2.0 Client ID
-  SHEET_NAME: 'Sheet1',
-  ID_PREFIX:  'HIN',
-  ID_PADDING: 4,            // HIN-0001
-  SITE_LABEL: 'Hincadora',
-  MAX_ROWS:   465,
-};
+// CONFIG alias — credentials come from config.js
+const CONFIG = GRAVITAS_CONFIG.HINCADORA;
 
 // ══════════════════════════════════════════════════════════════
 // STATE
@@ -372,12 +365,18 @@ const $ = id => document.getElementById(id);
 // INIT
 // ══════════════════════════════════════════════════════════════
 window.addEventListener('load', () => {
-  const configured = CONFIG.SHEET_ID && CONFIG.API_KEY;
+  const configured = CONFIG.SHEET_ID && CONFIG.API_KEY && CONFIG.CLIENT_ID;
   if (!configured) {
     $('setupBanner').style.display = 'block';
     $('hdrSub').textContent = `// ${CONFIG.SITE_LABEL} · Configuración pendiente`;
   } else {
     $('authBar').style.display = 'flex';
+    if (!CONFIG.CLIENT_ID) {
+      const warn = document.createElement('span');
+      warn.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--yellow);';
+      warn.textContent = '⚠ CLIENT_ID no configurado — solo lectura disponible';
+      document.getElementById('authBar').appendChild(warn);
+    }
     initOAuth();
     loadData();
   }
@@ -587,12 +586,14 @@ function renderTable() {
 // ══════════════════════════════════════════════════════════════
 // MODAL
 // ══════════════════════════════════════════════════════════════
-function openModal(rowNum) {
+async function openModal(rowNum) {
   editRowIndex = rowNum;
   clearModalInfo();
   if (rowNum === null) {
     $('modalTitle').textContent = 'Agregar Item';
-    const nextId = getNextId();
+    $('formItemId').textContent = '…';
+    $('modalBg').classList.remove('hidden');
+    const nextId = await getNextId();
     $('formItemId').textContent = nextId;
     $('fNombre').value = '';
     $('fCategoria').value = 'Herramienta';
@@ -603,6 +604,8 @@ function openModal(rowNum) {
     $('fFechaEntrega').value = '';
     $('fFechaBaja').value = '';
     $('fVidaUtil').value = '';
+    // modal already shown above, return early
+    return;
   } else {
     const row = allRows.find(r => r.rowNum === rowNum);
     if (!row) return;
@@ -626,19 +629,26 @@ function closeModal() {
   editRowIndex = null;
 }
 
-function getNextId() {
-  const usedNums = new Set(
-    allRows.map(r => {
-      const m = r.id.match(new RegExp(`^${CONFIG.ID_PREFIX}-(\\d+)$`));
-      return m ? parseInt(m[1]) : null;
-    }).filter(n => n !== null)
-  );
-  for (let i = 1; i <= CONFIG.MAX_ROWS; i++) {
-    if (!usedNums.has(i)) {
-      return `${CONFIG.ID_PREFIX}-${String(i).padStart(CONFIG.ID_PADDING, '0')}`;
+async function getNextId() {
+  // Fetch columns A and B to find first pre-allocated row where B (Nombre) is empty
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(CONFIG.SHEET_NAME + '!A:B')}?key=${CONFIG.API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('fetch failed');
+    const data = await resp.json();
+    const rows = data.values || [];
+    for (let i = 1; i < rows.length; i++) {
+      const id     = (rows[i][0] || '').trim();
+      const nombre = (rows[i][1] || '').trim();
+      if (id && !nombre) return id; // first pre-allocated empty slot
     }
-  }
-  return `${CONFIG.ID_PREFIX}-${String(CONFIG.MAX_ROWS + 1).padStart(CONFIG.ID_PADDING, '0')}`;
+  } catch (_) {}
+  // Fallback: increment past the last used ID in allRows
+  const nums = allRows
+    .map(r => { const m = r.id.match(new RegExp(`^${CONFIG.ID_PREFIX}-(\\d+)$`)); return m ? parseInt(m[1]) : 0; })
+    .filter(n => n > 0);
+  const max = Math.max(...nums, 0);
+  return `${CONFIG.ID_PREFIX}-${String(max + 1).padStart(CONFIG.ID_PADDING, '0')}`;
 }
 
 // ══════════════════════════════════════════════════════════════

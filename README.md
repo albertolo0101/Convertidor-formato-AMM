@@ -27,12 +27,15 @@ Corre 100% como archivos locales. Abrí `launcher.html` desde el escritorio.
 4. Compartir ambos sheets con tu Gmail personal como **Editor**
 
 ### 3. Configurar los archivos
-En `insumos-planta.html` y `insumos-hincadora.html`, encontrá el bloque CONFIG al inicio del `<script>` y pegá:
-- `SHEET_ID` — el ID del Sheet (parte del URL entre `/d/` y `/edit`)
+
+Abrí `config.js` en un editor de texto y pegá los valores en los campos correspondientes:
+- `SHEET_ID` — el ID del Sheet (entre `/d/` y `/edit` en el URL de Google Sheets)
 - `API_KEY` — la API key de Google Cloud
 - `CLIENT_ID` — el OAuth 2.0 Client ID (termina en `.apps.googleusercontent.com`)
 
-En `launcher.html`, pegá los mismos valores en el bloque `SUITE_CONFIG` para habilitar las stats rápidas.
+Los mismos valores funcionan para ambos módulos (Planta y Hincadora) si usás el mismo proyecto de Google Cloud. Solo el `SHEET_ID` cambia entre los dos.
+
+> ⚠ `config.js` contiene credenciales. No lo subas a un repositorio público.
 
 ## Uso del módulo AMM
 

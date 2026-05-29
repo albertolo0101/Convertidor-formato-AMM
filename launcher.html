@@ -114,6 +114,7 @@ body::before{content:'';position:fixed;inset:0;
   .stats-grid{grid-template-columns:1fr;}
 }
 </style>
+<script src="config.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -198,23 +199,7 @@ body::before{content:'';position:fixed;inset:0;
 </div><!-- /wrap -->
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// SUITE_CONFIG — paste credentials here for quick stats
-// These must match the credentials in each inventory module.
-// Future improvement: extract to a shared config.js file.
-// ══════════════════════════════════════════════════════════════
-const SUITE_CONFIG = {
-  PLANTA: {
-    SHEET_ID:   '',   // same SHEET_ID as in insumos-planta.html
-    API_KEY:    '',   // same API_KEY
-    SHEET_NAME: 'Sheet1',
-  },
-  HINCADORA: {
-    SHEET_ID:   '',   // same SHEET_ID as in insumos-hincadora.html
-    API_KEY:    '',   // same API_KEY
-    SHEET_NAME: 'Sheet1',
-  },
-};
+// Credentials come from config.js (GRAVITAS_CONFIG)
 
 // ══════════════════════════════════════════════════════════════
 // INIT
@@ -225,7 +210,7 @@ window.addEventListener('load', () => {
 });
 
 function checkModuleStatus() {
-  if (SUITE_CONFIG.PLANTA.SHEET_ID) {
+  if (GRAVITAS_CONFIG.PLANTA.SHEET_ID) {
     document.getElementById('badgePlanta').className = 'badge badge-green';
     document.getElementById('badgePlanta').textContent = '✅ Activo';
     document.getElementById('cardPlanta').classList.add('active-mod');
@@ -233,7 +218,7 @@ function checkModuleStatus() {
   } else {
     document.getElementById('cardPlanta').classList.add('config-mod');
   }
-  if (SUITE_CONFIG.HINCADORA.SHEET_ID) {
+  if (GRAVITAS_CONFIG.HINCADORA.SHEET_ID) {
     document.getElementById('badgeHincadora').className = 'badge badge-green';
     document.getElementById('badgeHincadora').textContent = '✅ Activo';
     document.getElementById('cardHincadora').classList.add('active-mod');
@@ -251,10 +236,10 @@ async function loadQuickStats() {
 }
 
 async function fetchStats(key, elId) {
-  const cfg = SUITE_CONFIG[key];
+  const cfg = GRAVITAS_CONFIG[key];
   const el = document.getElementById(elId);
   if (!cfg.SHEET_ID || !cfg.API_KEY) {
-    el.innerHTML = `<p class="stats-msg">Configurá las credenciales en <code>${key === 'PLANTA' ? 'insumos-planta.html' : 'insumos-hincadora.html'}</code> y pegá los mismos valores en SUITE_CONFIG arriba.</p>`;
+    el.innerHTML = `<p class="stats-msg">Configurá las credenciales en <code>config.js</code> para ver las stats aquí.</p>`;
     return;
   }
   try {
