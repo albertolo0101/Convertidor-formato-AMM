@@ -200,6 +200,57 @@ def api_asistencia_hoy():
     return jsonify({"ok": True, "registros": filas})
 
 
+ACTIVIDADES_VALIDAS = ("lavado_paneles", "poda", "fumigacion", "mantenimiento_general")
+ESTADOS_VALIDOS = ("iniciado", "en_progreso", "completado")
+
+
+@app.route("/api/mantenimiento", methods=["POST"])
+def api_mantenimiento_post():
+    body = request.get_json(silent=True) or {}
+    empleado_id = body.get("empleado_id")
+    actividad = body.get("actividad")
+    zonas = body.get("zonas")
+    estado = body.get("estado")
+    notas = body.get("notas") or ""
+
+    empleado = buscar_empleado(empleado_id)
+    if not empleado:
+        return jsonify({"ok": False, "error": "empleado_id invalido"}), 400
+    if actividad not in ACTIVIDADES_VALIDAS:
+        return jsonify({"ok": False, "error": f"actividad invalida ({'|'.join(ACTIVIDADES_VALIDAS)})"}), 400
+    if estado not in ESTADOS_VALIDOS:
+        return jsonify({"ok": False, "error": f"estado invalido ({'|'.join(ESTADOS_VALIDOS)})"}), 400
+    if not isinstance(zonas, list) or len(zonas) == 0:
+        return jsonify({"ok": False, "error": "zonas debe ser una lista con al menos 1 elemento"}), 400
+
+    registro_id = str(uuid.uuid4())
+    now = ahora()
+
+    fila = {
+        "id": registro_id,
+        "fecha": now.strftime("%Y-%m-%d"),
+        "hora": now.strftime("%H:%M:%S"),
+        "timestamp_iso": now.isoformat(),
+        "empleado_id": empleado["id"],
+        "empleado_nombre": empleado["nombre"],
+        "actividad": actividad,
+        "zonas": ";".join(zonas),
+        "cantidad_zonas": len(zonas),
+        "estado": estado,
+        "notas": notas,
+    }
+    agregar_fila_csv(MANTENIMIENTO_CSV, MANTENIMIENTO_HEADERS, fila)
+
+    return jsonify({"ok": True, "id": registro_id})
+
+
+@app.route("/api/mantenimiento/hoy")
+def api_mantenimiento_hoy():
+    hoy = ahora().strftime("%Y-%m-%d")
+    filas = [f for f in leer_csv(MANTENIMIENTO_CSV) if f["fecha"] == hoy]
+    return jsonify({"ok": True, "registros": filas})
+
+
 @app.route("/api/zonas")
 def api_zonas():
     if not os.path.exists(ZONAS_PATH):

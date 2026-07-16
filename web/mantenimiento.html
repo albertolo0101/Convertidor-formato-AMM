@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitas · Mantenimiento</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --line:#243447; --text:#e6edf3; --muted:#8b9bb0;
+    --azul:#123a63; --azul-b:#1f5c96;
+    --blanco:#f5f7fa; --blanco-b:#111820;
+    --celeste:#29a3d6; --celeste-b:#1b6f93;
+    --verde:#4caf50; --verde-b:#2f7d33;
+    --sel:#f5a623; --sel-fill:#f5a62333;
+    --accent:#00e5ff; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       padding:24px;max-width:960px;margin:0 auto;}
+  .hdr{display:flex;align-items:center;gap:16px;margin-bottom:8px;}
+  .hdr-logo{height:48px;width:auto;}
+  h1{font-size:20px;font-weight:700;margin:0;font-family:var(--mono);}
+  .back-link{font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none;
+    border:1px solid var(--line);padding:6px 12px;margin-left:auto;}
+  .back-link:hover{color:var(--accent);border-color:var(--accent);}
+  .sub{color:var(--muted);font-size:13px;margin:10px 0 14px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+  .act{padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+       border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px}
+  .act.on{border-color:var(--sel);background:#f5a62318;color:#ffd18a}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid #0006}
+  .d-azul{background:var(--azul);border-color:var(--azul-b)}
+  .d-blanco{background:var(--blanco)}
+  .d-celeste{background:var(--celeste)}
+  .d-verde{background:var(--verde)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:2px 0 12px}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .wrap{border:1px solid var(--line);border-radius:12px;background:#0c131b;padding:10px;overflow:auto}
+  svg{display:block;width:100%;height:auto;min-width:820px}
+  .cell{cursor:pointer}
+  .cell.sel{stroke:var(--sel);stroke-width:2.2px}
+  .cell-hidden{display:none}
+  .foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:12px}
+  .count{font-size:14px}
+  .count b{color:var(--sel)}
+  .btn{padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;cursor:pointer;font-size:14px}
+  .btn:hover{border-color:var(--muted)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-primary{background:var(--accent);color:#001820;border-color:var(--accent);font-weight:700}
+  .ids{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--muted);
+       word-break:break-word;background:#0c131b;border:1px solid var(--line);border-radius:8px;padding:8px;min-height:20px}
+  .lbl{font-size:9px;fill:#7f8ea3}
+  .qlbl{font-size:11px;fill:#c7d2de;font-weight:600}
+
+  .form-panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:18px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
+  .form-field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;}
+  .form-field select, .form-field textarea{width:100%;background:#0c131b;border:1px solid var(--line);color:var(--text);
+    padding:9px 10px;border-radius:6px;font-size:13px;font-family:inherit;}
+  .form-field textarea{resize:vertical;min-height:50px;}
+  .msg{font-size:13px;margin-top:10px;font-family:var(--mono);}
+  .msg.err{color:#ff6b7a;}
+  .msg.ok{color:#4caf50;}
+
+  .section-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:10px;margin-top:28px;}
+  .log-list{background:var(--panel);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12px;}
+  .log-row{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .log-row:last-child{border-bottom:none;}
+  .log-hora{color:var(--accent);width:64px;flex-shrink:0;}
+  .log-nombre{width:140px;flex-shrink:0;}
+  .log-act{color:var(--muted);width:150px;flex-shrink:0;}
+  .log-zonas{color:var(--muted);flex:1;min-width:120px;}
+  .log-estado{text-transform:uppercase;font-size:10px;letter-spacing:.05em;}
+  .log-empty{padding:16px;color:var(--muted);}
+</style>
+</head>
+<body>
+  <div class="hdr">
+    <img class="hdr-logo" src="../logo.png" alt="Gravitas Logo"/>
+    <h1>Mantenimiento</h1>
+    <a class="back-link" href="launcher.html">← Panel principal</a>
+  </div>
+  <p class="sub">Elegí la actividad; el mapa muestra solo las zonas seleccionables para esa actividad.</p>
+
+  <div class="bar" id="acts"></div>
+  <div class="legend">
+    <span><span class="dot d-azul"></span>Paneles (lavado)</span>
+    <span><span class="dot d-blanco"></span>Calles / vacíos (poda·fumig.)</span>
+    <span><span class="dot d-celeste"></span>Drenajes pluviales (poda·fumig.)</span>
+    <span><span class="dot d-verde"></span>Verde (mant. general)</span>
+  </div>
+
+  <div class="wrap">
+    <svg id="map" viewBox="0 0 860 740" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="foot">
+    <div class="count"><b id="n">0</b> zona(s) seleccionada(s) · actividad: <b id="actName">—</b></div>
+    <button class="btn" id="clear">Limpiar selección</button>
+  </div>
+  <div class="ids" id="ids">—</div>
+
+  <div class="form-panel">
+    <div class="form-row">
+      <div class="form-field">
+        <label>Empleado</label>
+        <select id="fEmpleado"></select>
+      </div>
+      <div class="form-field">
+        <label>Estado</label>
+        <select id="fEstado">
+          <option value="iniciado">Iniciado</option>
+          <option value="en_progreso">En progreso</option>
+          <option value="completado">Completado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label>Notas (opcional)</label>
+      <textarea id="fNotas" placeholder="Observaciones del trabajo realizado…"></textarea>
+    </div>
+    <button class="btn btn-primary" id="btnRegistrar">Registrar</button>
+    <div class="msg" id="formMsg"></div>
+  </div>
+
+  <div class="section-lbl">Registros de hoy</div>
+  <div class="log-list" id="logHoy"><div class="log-empty">Cargando…</div></div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("map");
+
+const ACT_LABELS={
+  lavado_paneles:"Lavado de paneles",
+  poda:"Poda",
+  fumigacion:"Fumigación",
+  mantenimiento_general:"Mant. general",
+};
+const ACT_DOT={
+  lavado_paneles:"d-azul",
+  poda:"d-blanco",
+  fumigacion:"d-blanco",
+  mantenimiento_general:"d-verde",
+};
+// Posiciones fijas de layout (zonas.json no trae coordenadas, solo IDs/estructura)
+const QUAD_POS={
+  C1:{x:40,  y:30},
+  C2:{x:40,  y:398},
+  C3:{x:660, y:150},
+  C4:{x:660, y:470},
+};
+const DREN_POS=[
+  {x:40,  y:352, w:300, h:20},
+  {x:340, y:352, w:300, h:20},
+  {x:600, y:398, w:22,  h:150},
+  {x:600, y:548, w:22,  h:150},
+];
+const VERDE_POS=[
+  {x:600, y:30,  w:52, h:322},
+  {x:640, y:372, w:150,h:90 },
+];
+
+const PANEL_W=50, COL_GAP=6, AISLE=26, PANEL_H=11, ROW_H=17;
+
+let zonasData=null;
+let actividad=null;
+const selected=new Set();
+const layers={panel:[],poda:[],drenaje:[],verde:[]};
+
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function colX(ox,c,cols){
+  if(cols===4){const off=[0,PANEL_W+COL_GAP,PANEL_W*2+COL_GAP+AISLE,PANEL_W*3+COL_GAP*2+AISLE];return ox+off[c];}
+  return ox + c*(PANEL_W+COL_GAP);
+}
+function quadWidth(cols){ return cols===4 ? PANEL_W*4+COL_GAP*2+AISLE : PANEL_W*2+COL_GAP; }
+
+function addCell(layer,id,x,y,w,h,fill,stroke){
+  const r=el("rect",{x,y,width:w,height:h,rx:2,fill,stroke,"stroke-width":0.7,class:"cell","data-id":id});
+  r.addEventListener("click",()=>toggle(id,r));
+  layers[layer].push(r); svg.appendChild(r);
+}
+
+function buildMap(data){
+  for(const q of data.cuadrantes){
+    const pos=QUAD_POS[q.id];
+    if(!pos) continue;
+    const cols=q.columnas_panel.length;
+    const qw=quadWidth(cols);
+    const t=el("text",{x:pos.x,y:pos.y-8,class:"qlbl"}); t.textContent=q.id; svg.appendChild(t);
+    const sinPanel=new Set(q.sin_panel||[]);
+    q.filas.forEach((row,ri)=>{
+      const ry=pos.y+ri*ROW_H;
+      const lr=el("text",{x:pos.x-8,y:ry+PANEL_H,class:"lbl","text-anchor":"end"}); lr.textContent=row; svg.appendChild(lr);
+      // PANELES (azul)
+      for(let c=0;c<cols;c++){
+        const id=`${q.id}-${row}${c+1}`;
+        if(sinPanel.has(id)) continue;
+        addCell("panel",id,colX(pos.x,c,cols),ry,PANEL_W,PANEL_H,"var(--azul)","var(--azul-b)");
+      }
+      // PODA (blanco) — fila dividida en 2 mitades, cubre todo el cuadrante tenga o no paneles
+      const half=qw/2;
+      addCell("poda",`${q.id}-P-${row}1`,pos.x,      ry,half-1,PANEL_H,"var(--blanco)","var(--blanco-b)");
+      addCell("poda",`${q.id}-P-${row}2`,pos.x+half, ry,half-1,PANEL_H,"var(--blanco)","var(--blanco-b)");
+    });
+  }
+  data.drenajes.forEach((id,i)=>{
+    const p=DREN_POS[i]; if(!p) return;
+    addCell("drenaje",id,p.x,p.y,p.w,p.h,"var(--celeste)","var(--celeste-b)");
+  });
+  data.verde.forEach((id,i)=>{
+    const p=VERDE_POS[i]; if(!p) return;
+    addCell("verde",id,p.x,p.y,p.w,p.h,"var(--verde)","var(--verde-b)");
+  });
+}
+
+function applyActivity(){
+  const permit=zonasData.actividades[actividad]||[];
+  for(const tipo in layers){
+    const show=permit.includes(tipo);
+    layers[tipo].forEach(r=>r.classList.toggle("cell-hidden",!show));
+  }
+}
+function toggle(id,r){
+  if(r.classList.contains("cell-hidden"))return;
+  if(selected.has(id)){selected.delete(id);r.classList.remove("sel");}
+  else{selected.add(id);r.classList.add("sel");}
+  count();
+}
+function count(){
+  document.getElementById("n").textContent=selected.size;
+  document.getElementById("ids").textContent=selected.size?[...selected].join("  "):"—";
+}
+function clearSel(){
+  selected.forEach(id=>{const r=svg.querySelector(`[data-id="${id}"]`);if(r)r.classList.remove("sel");});
+  selected.clear();count();
+}
+
+function renderActBar(){
+  const bar=document.getElementById("acts");
+  bar.innerHTML=Object.keys(zonasData.actividades).map(act=>`
+    <button class="act${act===actividad?' on':''}" data-act="${act}">
+      <span class="dot ${ACT_DOT[act]}"></span>${ACT_LABELS[act]||act}
+    </button>
+  `).join("");
+  bar.querySelectorAll(".act").forEach(b=>{
+    b.addEventListener("click",()=>{
+      bar.querySelectorAll(".act").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on");
+      actividad=b.getAttribute("data-act");
+      document.getElementById("actName").textContent=ACT_LABELS[actividad]||actividad;
+      clearSel();applyActivity();
+    });
+  });
+}
+
+async function cargarZonas(){
+  const resp=await fetch('/api/zonas');
+  const data=await resp.json();
+  if(data.ok===false) throw new Error(data.error||'error cargando zonas');
+  zonasData=data;
+  actividad=Object.keys(data.actividades)[0];
+  document.getElementById("actName").textContent=ACT_LABELS[actividad]||actividad;
+  renderActBar();
+  buildMap(data);
+  applyActivity();
+  count();
+}
+
+async function cargarEmpleados(){
+  const resp=await fetch('/api/estado');
+  const data=await resp.json();
+  if(!data.ok) throw new Error(data.error||'error');
+  const sel=document.getElementById("fEmpleado");
+  sel.innerHTML=data.empleados.map(e=>`<option value="${e.id}">${escHtml(e.nombre)}</option>`).join("");
+}
+
+async function cargarLogHoy(){
+  try{
+    const resp=await fetch('/api/mantenimiento/hoy');
+    const data=await resp.json();
+    if(!data.ok) throw new Error(data.error||'error');
+    const filas=data.registros.slice().reverse();
+    const el=document.getElementById("logHoy");
+    if(!filas.length){ el.innerHTML='<div class="log-empty">Sin registros hoy todavía.</div>'; return; }
+    el.innerHTML=filas.map(f=>`
+      <div class="log-row">
+        <span class="log-hora">${escHtml(f.hora)}</span>
+        <span class="log-nombre">${escHtml(f.empleado_nombre)}</span>
+        <span class="log-act">${escHtml(ACT_LABELS[f.actividad]||f.actividad)} (${escHtml(f.cantidad_zonas)})</span>
+        <span class="log-zonas">${escHtml(f.zonas)}</span>
+        <span class="log-estado">${escHtml(f.estado)}</span>
+      </div>
+    `).join("");
+  }catch(e){
+    document.getElementById("logHoy").innerHTML=`<div class="log-empty">Error cargando log: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function registrar(){
+  const msg=document.getElementById("formMsg");
+  msg.textContent=""; msg.className="msg";
+  if(selected.size===0){
+    msg.textContent="Seleccioná al menos una zona en el mapa.";
+    msg.className="msg err";
+    return;
+  }
+  const empleado_id=document.getElementById("fEmpleado").value;
+  const estado=document.getElementById("fEstado").value;
+  const notas=document.getElementById("fNotas").value;
+  const btn=document.getElementById("btnRegistrar");
+  btn.disabled=true;
+  try{
+    const resp=await fetch('/api/mantenimiento',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({empleado_id, actividad, zonas:[...selected], estado, notas}),
+    });
+    const data=await resp.json();
+    if(!data.ok) throw new Error(data.error||'error al registrar');
+    msg.textContent="✓ Registrado correctamente.";
+    msg.className="msg ok";
+    clearSel();
+    document.getElementById("fNotas").value="";
+    await cargarLogHoy();
+  }catch(e){
+    msg.textContent="Error: "+e.message;
+    msg.className="msg err";
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+function escHtml(s){
+  return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById("clear").addEventListener("click",clearSel);
+document.getElementById("btnRegistrar").addEventListener("click",registrar);
+
+window.addEventListener('load', async ()=>{
+  try{
+    await cargarZonas();
+    await cargarEmpleados();
+    await cargarLogHoy();
+  }catch(e){
+    document.getElementById("formMsg").textContent="Error inicializando: "+e.message;
+    document.getElementById("formMsg").className="msg err";
+  }
+});
+</script>
+</body>
+</html>
