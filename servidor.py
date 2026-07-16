@@ -176,6 +176,7 @@ def purgar_fotos_viejas():
 
 
 app = Flask(__name__, static_folder=WEB_DIR, static_url_path="/web")
+app.json.sort_keys = False  # preservar el orden de zonas.json (actividades: lavado_paneles primero)
 
 
 @app.route("/")
