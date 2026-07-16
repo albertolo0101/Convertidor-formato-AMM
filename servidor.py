@@ -4,14 +4,17 @@ Sirve el suite (web/), guarda asistencia y mantenimiento en CSV local,
 y sincroniza a Google Sheets bajo demanda. Corre 100% offline en el
 dia a dia; solo necesita internet al sincronizar.
 """
+import base64
 import csv
 import json
 import os
 import sys
+import time
+import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from flask import Flask, jsonify, redirect
+from flask import Flask, jsonify, redirect, request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -78,6 +81,35 @@ def leer_sync_state():
         return json.load(f)
 
 
+def agregar_fila_csv(ruta, headers, fila):
+    # El archivo ya nace con BOM (utf-8-sig) al crearse; abrir en 'a' con
+    # utf-8-sig insertaria un BOM nuevo en medio del archivo, asi que acá
+    # se agrega en utf-8 puro.
+    with open(ruta, "a", newline="", encoding="utf-8") as f:
+        csv.DictWriter(f, fieldnames=headers).writerow(fila)
+
+
+def buscar_empleado(empleado_id):
+    for emp in CONFIG.get("empleados", []):
+        if emp["id"] == empleado_id:
+            return emp
+    return None
+
+
+def purgar_fotos_viejas():
+    dias = CONFIG.get("retencion_fotos_dias", 14)
+    limite = time.time() - dias * 86400
+    if not os.path.isdir(FOTOS_DIR):
+        return
+    for nombre in os.listdir(FOTOS_DIR):
+        ruta = os.path.join(FOTOS_DIR, nombre)
+        try:
+            if os.path.isfile(ruta) and os.path.getmtime(ruta) < limite:
+                os.remove(ruta)
+        except OSError:
+            pass
+
+
 app = Flask(__name__, static_folder=WEB_DIR, static_url_path="/web")
 
 
@@ -118,6 +150,56 @@ def api_estado():
     })
 
 
+@app.route("/api/asistencia", methods=["POST"])
+def api_asistencia_post():
+    body = request.get_json(silent=True) or {}
+    empleado_id = body.get("empleado_id")
+    accion = body.get("accion")
+    foto_base64 = body.get("foto_base64")
+
+    empleado = buscar_empleado(empleado_id)
+    if not empleado:
+        return jsonify({"ok": False, "error": "empleado_id invalido"}), 400
+    if accion not in ("entrada", "salida"):
+        return jsonify({"ok": False, "error": "accion invalida (entrada|salida)"}), 400
+
+    registro_id = str(uuid.uuid4())
+    now = ahora()
+
+    foto_archivo = "sin_foto"
+    if foto_base64:
+        try:
+            datos_b64 = foto_base64.split(",", 1)[1] if "," in foto_base64 else foto_base64
+            foto_bytes = base64.b64decode(datos_b64)
+            foto_archivo = f"{registro_id}.jpg"
+            with open(os.path.join(FOTOS_DIR, foto_archivo), "wb") as f:
+                f.write(foto_bytes)
+        except (ValueError, base64.binascii.Error):
+            foto_archivo = "sin_foto"
+
+    fila = {
+        "id": registro_id,
+        "fecha": now.strftime("%Y-%m-%d"),
+        "hora": now.strftime("%H:%M:%S"),
+        "timestamp_iso": now.isoformat(),
+        "empleado_id": empleado["id"],
+        "empleado_nombre": empleado["nombre"],
+        "accion": accion,
+        "foto_archivo": foto_archivo,
+    }
+    agregar_fila_csv(ASISTENCIA_CSV, ASISTENCIA_HEADERS, fila)
+    purgar_fotos_viejas()
+
+    return jsonify({"ok": True, "id": registro_id})
+
+
+@app.route("/api/asistencia/hoy")
+def api_asistencia_hoy():
+    hoy = ahora().strftime("%Y-%m-%d")
+    filas = [f for f in leer_csv(ASISTENCIA_CSV) if f["fecha"] == hoy]
+    return jsonify({"ok": True, "registros": filas})
+
+
 @app.route("/api/zonas")
 def api_zonas():
     if not os.path.exists(ZONAS_PATH):
@@ -138,6 +220,7 @@ def error_interno(e):
 
 if __name__ == "__main__":
     asegurar_datos()
+    purgar_fotos_viejas()
     puerto = CONFIG.get("puerto", 8787)
     print(f"Gravitas Command Center corriendo en http://localhost:{puerto}")
     try:
