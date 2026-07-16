@@ -15,6 +15,10 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from flask import Flask, jsonify, redirect, request
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build as build_service
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -22,9 +26,12 @@ DATOS_DIR = os.path.join(BASE_DIR, "datos")
 FOTOS_DIR = os.path.join(DATOS_DIR, "fotos")
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 ZONAS_PATH = os.path.join(BASE_DIR, "zonas.json")
+CREDENTIALS_PATH = os.path.join(BASE_DIR, "credentials.json")
+TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
 SYNC_STATE_PATH = os.path.join(DATOS_DIR, "sync_state.json")
 ASISTENCIA_CSV = os.path.join(DATOS_DIR, "asistencia.csv")
 MANTENIMIENTO_CSV = os.path.join(DATOS_DIR, "mantenimiento.csv")
+SYNC_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 ASISTENCIA_HEADERS = [
     "id", "fecha", "hora", "timestamp_iso", "empleado_id",
@@ -79,6 +86,64 @@ def leer_sync_state():
         return {"asistencia_subidas": [], "mantenimiento_subidas": [], "ultima_sync": None}
     with open(SYNC_STATE_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def guardar_sync_state(sync_state):
+    with open(SYNC_STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump(sync_state, f, ensure_ascii=False, indent=2)
+
+
+def obtener_credenciales_google():
+    """Devuelve credenciales OAuth validas, refrescando o re-consintiendo si hace falta."""
+    creds = None
+    if os.path.exists(TOKEN_PATH):
+        try:
+            creds = Credentials.from_authorized_user_file(TOKEN_PATH, SYNC_SCOPES)
+        except (ValueError, json.JSONDecodeError):
+            creds = None
+
+    if creds and creds.valid:
+        return creds
+
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(GoogleAuthRequest())
+            with open(TOKEN_PATH, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
+            return creds
+        except Exception:
+            creds = None  # token revocado/invalido: re-consentir abajo
+
+    if not os.path.exists(CREDENTIALS_PATH):
+        raise RuntimeError(
+            "No existe credentials.json. Descargalo de Google Cloud Console "
+            "(OAuth Client ID, tipo Desktop app) y coloca el archivo en la raiz del proyecto."
+        )
+
+    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SYNC_SCOPES)
+    creds = flow.run_local_server(port=0)
+    with open(TOKEN_PATH, "w", encoding="utf-8") as f:
+        f.write(creds.to_json())
+    return creds
+
+
+def sheets_asegurar_encabezados(service, spreadsheet_id, hoja, headers):
+    ultima_col = chr(ord("A") + len(headers) - 1)
+    rango = f"{hoja}!A1:{ultima_col}1"
+    resp = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=rango).execute()
+    if not resp.get("values"):
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id, range=rango,
+            valueInputOption="RAW", body={"values": [headers]},
+        ).execute()
+
+
+def sheets_append(service, spreadsheet_id, hoja, filas):
+    service.spreadsheets().values().append(
+        spreadsheetId=spreadsheet_id, range=f"{hoja}!A1",
+        valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+        body={"values": filas},
+    ).execute()
 
 
 def agregar_fila_csv(ruta, headers, fila):
@@ -257,6 +322,79 @@ def api_zonas():
         return jsonify({"ok": False, "error": "No existe zonas.json"}), 500
     with open(ZONAS_PATH, encoding="utf-8") as f:
         return jsonify(json.load(f))
+
+
+@app.route("/api/sync", methods=["POST"])
+def api_sync():
+    try:
+        creds = obtener_credenciales_google()
+        service = build_service("sheets", "v4", credentials=creds)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+    sync_state = leer_sync_state()
+    subidas_asistencia = set(sync_state.get("asistencia_subidas", []))
+    subidas_mantenimiento = set(sync_state.get("mantenimiento_subidas", []))
+    errores = []
+    asistencia_subidas = 0
+    mantenimiento_subidas = 0
+
+    cfg_asistencia = CONFIG.get("sheets", {}).get("asistencia", {})
+    pendientes_asistencia = [
+        f for f in leer_csv(ASISTENCIA_CSV) if f["id"] not in subidas_asistencia
+    ]
+    if pendientes_asistencia:
+        try:
+            headers = ["id", "fecha", "hora", "empleado_nombre", "accion"]
+            sheets_asegurar_encabezados(
+                service, cfg_asistencia["spreadsheet_id"], cfg_asistencia["hoja"], headers
+            )
+            filas = [[f["id"], f["fecha"], f["hora"], f["empleado_nombre"], f["accion"]]
+                      for f in pendientes_asistencia]
+            sheets_append(service, cfg_asistencia["spreadsheet_id"], cfg_asistencia["hoja"], filas)
+            for f in pendientes_asistencia:
+                subidas_asistencia.add(f["id"])
+            asistencia_subidas = len(pendientes_asistencia)
+        except Exception as e:
+            errores.append(f"asistencia: {e}")
+
+    cfg_mantenimiento = CONFIG.get("sheets", {}).get("mantenimiento", {})
+    pendientes_mantenimiento = [
+        f for f in leer_csv(MANTENIMIENTO_CSV) if f["id"] not in subidas_mantenimiento
+    ]
+    if pendientes_mantenimiento:
+        try:
+            headers = ["id", "fecha", "hora", "empleado_nombre", "actividad", "zona", "estado", "notas"]
+            sheets_asegurar_encabezados(
+                service, cfg_mantenimiento["spreadsheet_id"], cfg_mantenimiento["hoja"], headers
+            )
+            filas = []
+            for f in pendientes_mantenimiento:
+                zonas = [z for z in f["zonas"].split(";") if z]
+                for zona in zonas:
+                    filas.append([
+                        f["id"], f["fecha"], f["hora"], f["empleado_nombre"],
+                        f["actividad"], zona, f["estado"], f["notas"],
+                    ])
+            sheets_append(service, cfg_mantenimiento["spreadsheet_id"], cfg_mantenimiento["hoja"], filas)
+            for f in pendientes_mantenimiento:
+                subidas_mantenimiento.add(f["id"])
+            mantenimiento_subidas = len(pendientes_mantenimiento)
+        except Exception as e:
+            errores.append(f"mantenimiento: {e}")
+
+    if asistencia_subidas or mantenimiento_subidas:
+        sync_state["asistencia_subidas"] = sorted(subidas_asistencia)
+        sync_state["mantenimiento_subidas"] = sorted(subidas_mantenimiento)
+        sync_state["ultima_sync"] = ahora().isoformat()
+        guardar_sync_state(sync_state)
+
+    return jsonify({
+        "ok": len(errores) == 0,
+        "asistencia_subidas": asistencia_subidas,
+        "mantenimiento_subidas": mantenimiento_subidas,
+        "errores": errores,
+    })
 
 
 @app.errorhandler(404)
