@@ -1,1 +1,8 @@
 config.js
+config.json
+credentials.json
+token.json
+datos/
+.venv/
+__pycache__/
+*.pyc

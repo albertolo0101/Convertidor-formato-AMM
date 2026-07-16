@@ -29,7 +29,6 @@ body::before{content:'';position:fixed;inset:0;
 
 /* HEADER */
 .hdr{margin-bottom:52px;}
-.hdr-logo{height:72px;width:auto;display:block;margin-bottom:16px;}
 .hdr-badge{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
   color:var(--accent);border:1px solid rgba(0,229,255,.3);padding:4px 10px;display:inline-block;margin-bottom:18px;}
 .hdr h1{font-family:var(--mono);font-size:clamp(24px,5vw,38px);font-weight:700;
@@ -170,16 +169,6 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 .gap-tag{padding:3px 9px;background:rgba(255,209,102,.15);
   font-family:var(--mono);font-size:10px;color:var(--yellow);}
 
-/* NOTES */
-.notes-wrap{margin-top:16px;display:none;}
-.notes-wrap.show{display:block;}
-.notes-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
-.notes-ta{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);
-  font-family:var(--mono);font-size:12px;padding:12px 14px;resize:vertical;min-height:90px;
-  line-height:1.7;transition:border-color .2s;outline:none;}
-.notes-ta:focus{border-color:var(--accent);}
-.notes-ta::placeholder{color:var(--dim);}
-
 .reset-lnk{font-size:11px;color:var(--dim);cursor:pointer;text-decoration:underline;
   font-family:var(--mono);display:none;margin-top:10px;}
 .reset-lnk:hover{color:var(--red);}
@@ -199,9 +188,8 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 <div class="wrap">
 
 <div class="hdr">
-  <img class="hdr-logo" src="logo.png" alt="Gravitas Logo"/>
   <div class="hdr-badge">GRAVITAS · AMM · SUITE v2</div>
-  <h1>Medición <em>→</em> AMM <em>+</em> Ingresos POE</h1>
+  <h1>Medición <em>→</em> AMM <em>+</em> Revenue POE</h1>
   <p>// Carga medición · extrae precios POE · calcula ingresos · genera formato AMM · reporte PDF</p>
 </div>
 
@@ -289,10 +277,10 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
 
 <!-- ══ STEP 3: REVENUE ══ -->
 <div class="card" id="c3">
-  <div class="card-hdr"><span class="card-num">03</span><span class="card-title">Ingresos calculados</span></div>
+  <div class="card-hdr"><span class="card-num">03</span><span class="card-title">Revenue calculado</span></div>
   <p class="card-sub">kWh generados ÷ 1000 × precio POE (USD/MWh) = USD por hora.</p>
   <div class="stats" id="statsRev">
-    <div class="stat"><span class="sv g" id="rTotal">—</span><span class="sk">Ingresos Total</span></div>
+    <div class="stat"><span class="sv g" id="rTotal">—</span><span class="sk">Revenue Total</span></div>
     <div class="stat"><span class="sv" id="rAvgDay">—</span><span class="sk">Avg/Día USD</span></div>
     <div class="stat"><span class="sv" id="rPrice">—</span><span class="sk">Precio Prom.</span></div>
     <div class="stat"><span class="sv" id="rMWh">—</span><span class="sk">MWh Gen</span></div>
@@ -300,7 +288,7 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
   <div class="tbl-wrap" id="tblRev"></div>
   <div class="chart-wrap" id="chartWrap">
     <div class="chart-box"><div class="chart-lbl">Generación diaria (MWh)</div><canvas id="cGen" height="110"></canvas></div>
-    <div class="chart-box"><div class="chart-lbl">Ingresos diarios (USD)</div><canvas id="cRev" height="110"></canvas></div>
+    <div class="chart-box"><div class="chart-lbl">Revenue diario (USD)</div><canvas id="cRev" height="110"></canvas></div>
   </div>
 </div>
 
@@ -321,13 +309,9 @@ tr.tot td{color:var(--green);font-weight:700;border-top:1px solid var(--border2)
     </div>
     <div class="out-card">
       <div class="out-card-title">📄 Informe PDF</div>
-      <div class="out-card-desc">Totales energía y ganancias<br>Gráficas generación e ingresos<br>Tabla detallada diaria</div>
+      <div class="out-card-desc">Totales energía y ganancias<br>Gráficas generación y revenue<br>Tabla detallada diaria</div>
       <button class="btn btn-g" onclick="downloadPDF()">⬇ Generar PDF</button>
     </div>
-  </div>
-  <div class="notes-wrap" id="notesWrap">
-    <div class="notes-lbl">Notas del mes (aparecen en el PDF)</div>
-    <textarea class="notes-ta" id="notesTa" placeholder="Comentarios adicionales sobre la generación del mes…"></textarea>
   </div>
   <span class="reset-lnk" id="resetBtn" onclick="resetAll()">↺ Procesar otro mes</span>
 </div>
@@ -817,7 +801,6 @@ function computeRevenue(){
   setCard(3,'done');
   setCard(4,'active');
   $('outGrid').classList.add('show');
-  $('notesWrap').classList.add('show');
   // Show/hide CSV download button
   $('btnDlCSV').style.opacity = poeCsvRaw ? '1' : '0.3';
   $('resetBtn').style.display='inline-block';
@@ -826,7 +809,7 @@ function computeRevenue(){
 
 function renderRevTable(){
   const{month:fm,year:fy}=medMonth;
-  let html='<table><thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Ingresos (USD)</th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Revenue (USD)</th></tr></thead><tbody>';
   revData.forEach(r=>{
     const[yy,mm,dd]=r.date.split('-');
     html+=`<tr><td>${dd}/${mm}/${yy}</td><td>${r.gen_mwh.toFixed(3)}</td><td>${r.avg_price?r.avg_price.toFixed(2):'—'}</td><td>${fmtUSD(r.rev_usd)}</td></tr>`;
@@ -894,15 +877,9 @@ function downloadPoeCsv(){
   a.click();URL.revokeObjectURL(url);
 }
 
-async function downloadPDF(){
+function downloadPDF(){
   if(!medData||!revData)return;
   const{year:fy,month:fm}=medMonth;
-  let logoSrc='';
-  try{
-    const resp=await fetch('logo.png');
-    const blob=await resp.blob();
-    logoSrc=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(blob);});
-  }catch(_){}
   const monLabel=MONTHS_ES[fm-1]+' '+fy;
   const totRev=revData.reduce((s,r)=>s+r.rev_usd,0);
   const totGen=revData.reduce((s,r)=>s+r.gen_mwh,0);
@@ -935,7 +912,6 @@ async function downloadPDF(){
     return c.toDataURL('image/png');
   }
 
-  const notesText=($('notesTa').value||'').trim();
   const imgGen=makeChartUrl(revData.map(r=>r.gen_mwh),'#0088aa');
   const imgRev=makeChartUrl(revData.map(r=>r.rev_usd),'#007744');
 
@@ -945,13 +921,12 @@ async function downloadPDF(){
     rows+=`<tr><td>${dd}/${mm}/${yy}</td><td>${r.gen_mwh.toFixed(3)}</td><td>${r.avg_price?r.avg_price.toFixed(2):'—'}</td><td>${fmtUSD(r.rev_usd)}</td></tr>`;
   });
 
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Reporte_Gravitas_${MONTHS_ES[fm-1]}_${fy}</title>
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'IBM Plex Sans',sans-serif;background:#fff;color:#111;padding:30px;font-size:12px;}
 .hdr{border-bottom:3px solid #000;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;}
-.hdr-logo{height:56px;width:auto;display:block;margin-bottom:8px;}
 .hdr h1{font-size:21px;font-weight:600;letter-spacing:-.02em;}
 .hdr .sub{font-family:'IBM Plex Mono',monospace;font-size:9px;color:#666;letter-spacing:.06em;}
 .hdr .mon{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:#0088aa;}
@@ -969,41 +944,37 @@ th:first-child{text-align:left;}
 td{padding:5px 10px;text-align:right;border-bottom:1px solid #eee;}
 td:first-child{text-align:left;}
 tr.tot td{font-weight:600;background:#f0f9ff;border-top:2px solid #0088aa;}
-.notes-box{margin-top:18px;border:1px solid #e0e0e0;padding:14px 16px;background:#f9f9f9;}
-.notes-box .stitle{margin-top:0;}
-.notes-body{font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:#333;white-space:pre-wrap;line-height:1.7;margin-top:6px;}
 .foot{margin-top:28px;border-top:1px solid #ddd;padding-top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#aaa;display:flex;justify-content:space-between;}
 @media print{body{padding:18px;}@page{margin:1.2cm;}}
 </style></head><body>
 <div class="hdr">
-  <div>${logoSrc?`<img class="hdr-logo" src="${logoSrc}" alt="Logo"/>`:''}<div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación e Ingresos</h1></div>
+  <div><div class="sub">INFORME MENSUAL · GRAVITAS PRINCIPAL</div><h1>Reporte de Generación y Revenue</h1></div>
   <div style="text-align:right"><div class="mon">${monLabel}</div><div class="sub">${revData.length} DÍAS · ${medData.length} HORAS</div></div>
 </div>
 <div class="kpi">
-  <div class="kc"><span class="kv">${fmtUSD(totRev)}</span><span class="kk">Ingresos Total</span></div>
+  <div class="kc"><span class="kv">${fmtUSD(totRev)}</span><span class="kk">Revenue Total</span></div>
   <div class="kc"><span class="kv">${totGen.toFixed(2)} MWh</span><span class="kk">Energía Generada</span></div>
   <div class="kc"><span class="kv">${totCons.toFixed(2)} MWh</span><span class="kk">Energía Consumida</span></div>
   <div class="kc"><span class="kv">${avgPrice.toFixed(2)} $/MWh</span><span class="kk">Precio POE Prom.</span></div>
 </div>
 <div class="kpi2">
-  <div class="kc"><span class="kk">Día de mayores ingresos</span>
+  <div class="kc"><span class="kk">Día de mayor revenue</span>
     <span class="kv" style="font-size:14px">${(()=>{const[yy,mm,dd]=maxDay.date.split('-');return dd+'/'+mm+'/'+yy;})()}</span>
     <span class="kk">${fmtUSD(maxDay.rev_usd)} · ${maxDay.gen_mwh.toFixed(2)} MWh</span></div>
-  <div class="kc"><span class="kk">Ingresos promedio/día</span>
+  <div class="kc"><span class="kk">Revenue promedio/día</span>
     <span class="kv" style="font-size:14px">${fmtUSD(totRev/revData.length)}</span>
     <span class="kk">sobre ${revData.length} días</span></div>
 </div>
 <div class="stitle">Generación diaria (MWh)</div>
 <div class="chart"><img src="${imgGen}"/></div>
-<div class="stitle">Ingresos diarios (USD)</div>
+<div class="stitle">Revenue diario (USD)</div>
 <div class="chart"><img src="${imgRev}"/></div>
 <div class="stitle">Detalle diario</div>
 <table>
-<thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Ingresos (USD)</th></tr></thead>
+<thead><tr><th>Fecha</th><th>Gen (MWh)</th><th>Precio Prom ($/MWh)</th><th>Revenue (USD)</th></tr></thead>
 <tbody>${rows}</tbody>
 <tfoot><tr class="tot"><td>TOTAL ${monLabel}</td><td>${totGen.toFixed(3)} MWh</td><td>${avgPrice.toFixed(2)}</td><td>${fmtUSD(totRev)}</td></tr></tfoot>
 </table>
-${notesText?`<div class="notes-box"><div class="stitle">Notas del mes</div><div class="notes-body">${notesText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`:''}
 <div class="foot"><span>GRAVITAS PRINCIPAL · CANALES 8549–8552 · POE USD/MWh</span><span>Generado ${new Date().toLocaleDateString('es-GT')}</span></div>
 <script>window.onload=()=>setTimeout(()=>window.print(),400);<\/script>
 </body></html>`;
@@ -1031,8 +1002,6 @@ function resetAll(){
   $('tblRev').classList.remove('show');$('tblRev').innerHTML='';
   $('chartWrap').classList.remove('show');
   $('outGrid').classList.remove('show');
-  $('notesWrap').classList.remove('show');
-  $('notesTa').value='';
   $('resetBtn').style.display='none';
   $('logBox').classList.remove('show');$('logBox').innerHTML='';
   $('zipChips').innerHTML='';
