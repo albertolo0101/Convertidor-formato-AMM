@@ -99,6 +99,45 @@ button,select,input{font-family:var(--mono);}
 .nota{font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.7;
   margin-top:30px;padding-top:18px;border-top:1px solid var(--border);}
 
+/* ---------- Pestañas ---------- */
+.pestanas{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--border2);flex-wrap:wrap;}
+.pestana{background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--dim);padding:11px 18px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;position:relative;}
+.pestana:hover{color:var(--text);}
+.pestana.activa{color:var(--accent);border-bottom-color:var(--accent);}
+.chapa{display:inline-block;background:var(--red);color:#fff;font-size:9px;
+  font-weight:700;padding:1px 6px;margin-left:7px;border-radius:9px;vertical-align:middle;}
+
+.seccion{display:none;}
+.seccion.activa{display:block;}
+
+/* ---------- Tarjetas de registro ---------- */
+.tarjeta{background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:12px;}
+.tarjeta.marcada{border-color:var(--yellow);background:rgba(255,209,102,.05);}
+.tarjeta-hdr{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
+.tarjeta-fecha{font-family:var(--mono);font-size:11px;color:var(--dim);}
+.tarjeta-tit{font-family:var(--mono);font-size:14px;color:var(--bright);font-weight:600;}
+.tarjeta-acc{margin-left:auto;display:flex;gap:9px;}
+
+.etiqueta{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 9px;border:1px solid;}
+.etiqueta.pendiente{color:var(--yellow);border-color:rgba(255,209,102,.4);background:var(--yellow-dim);}
+.etiqueta.lista{color:var(--green);border-color:rgba(0,255,136,.35);background:var(--green-dim);}
+.etiqueta.revision{color:var(--red);border-color:rgba(255,68,102,.4);background:var(--red-dim);}
+.etiqueta.actividad{color:var(--accent);border-color:rgba(0,229,255,.35);background:var(--accent-dim);}
+
+.lista-items{font-family:var(--mono);font-size:13px;}
+.lista-items div{padding:5px 0;border-bottom:1px solid rgba(26,34,53,.5);display:flex;gap:14px;}
+.lista-items div:last-child{border-bottom:none;}
+.lista-items .cant{color:var(--accent);margin-left:auto;}
+
+.sectores-lista{font-family:var(--mono);font-size:11px;color:var(--text);
+  line-height:1.9;word-break:break-word;}
+.notas-txt{font-family:var(--mono);font-size:12px;color:var(--text);line-height:1.7;
+  background:var(--bg);border-left:2px solid var(--border2);padding:10px 13px;margin-top:11px;
+  white-space:pre-wrap;}
+
 /* ---------- Visor de foto ---------- */
 .visor{position:fixed;inset:0;background:rgba(3,5,10,.94);z-index:20;
   display:none;align-items:center;justify-content:center;padding:28px;cursor:zoom-out;}
@@ -150,6 +189,39 @@ button,select,input{font-family:var(--mono);}
 
   <!-- Panel -->
   <div class="vista" id="v-panel">
+
+    <div class="pestanas">
+      <button class="pestana activa" data-seccion="asistencia">Asistencia</button>
+      <button class="pestana" data-seccion="actividad">Actividad<span class="chapa" id="chapa-actividad" style="display:none;"></span></button>
+      <button class="pestana" data-seccion="insumos">Insumos<span class="chapa" id="chapa-insumos" style="display:none;"></span></button>
+      <button class="pestana" data-seccion="visitas">Visitas</button>
+    </div>
+
+    <!-- ============ Actividad ============ -->
+    <div class="seccion" id="s-actividad">
+      <div class="resumen" id="resumen-actividad"></div>
+      <div id="lista-actividad"></div>
+      <div class="nota">
+        Los reportes marcados en amarillo son actividades fuera de los paneles
+        &mdash; inversores, rondas antifuego, subestación u otros. Quedan
+        señalados hasta que los marques como revisados.
+      </div>
+    </div>
+
+    <!-- ============ Insumos ============ -->
+    <div class="seccion" id="s-insumos">
+      <div class="resumen" id="resumen-insumos"></div>
+      <div id="lista-insumos"></div>
+    </div>
+
+    <!-- ============ Visitas ============ -->
+    <div class="seccion" id="s-visitas">
+      <div class="resumen" id="resumen-visitas"></div>
+      <div id="lista-visitas"></div>
+    </div>
+
+    <!-- ============ Asistencia ============ -->
+    <div class="seccion activa" id="s-asistencia">
     <div class="controles">
       <div class="campo">
         <label for="desde">Desde</label>
@@ -177,6 +249,8 @@ button,select,input{font-family:var(--mono);}
       conservan. Una marca que dice SIN FOTO se registró sin cámara disponible
       &mdash; conviene revisarla.
     </div>
+    </div><!-- /s-asistencia -->
+
   </div>
 
 </div>
@@ -278,6 +352,7 @@ async function iniciar() {
   await llenarTrabajadores();
   mostrarVista('v-panel');
   await cargar();
+  contarPendientes();
 }
 
 async function llenarTrabajadores() {
@@ -522,6 +597,255 @@ function exportarCsv() {
                '_a_' + document.getElementById('hasta').value + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+/* ================= PESTAÑAS ================= */
+const CARGADORES = {
+  actividad: cargarActividad,
+  insumos: cargarInsumos,
+  visitas: cargarVisitas,
+};
+
+document.querySelectorAll('.pestana').forEach(function (p) {
+  p.addEventListener('click', function () {
+    document.querySelectorAll('.pestana').forEach(x => x.classList.remove('activa'));
+    document.querySelectorAll('.seccion').forEach(x => x.classList.remove('activa'));
+    p.classList.add('activa');
+    document.getElementById('s-' + p.dataset.seccion).classList.add('activa');
+    const cargar = CARGADORES[p.dataset.seccion];
+    if (cargar) cargar();
+  });
+});
+
+function fechaHoraGT(iso) {
+  const d = new Date(iso);
+  return fechaGT(d) + ' · ' + horaGT(d);
+}
+
+/* ================= ACTIVIDAD ================= */
+const NOMBRE_CATEGORIA = {
+  inversores: 'Inversores',
+  rondas_antifuego: 'Rondas antifuego',
+  subestacion: 'Subestación',
+  otros: 'Otros',
+};
+
+async function cargarActividad() {
+  const cont = document.getElementById('lista-actividad');
+  cont.innerHTML = '<div class="vacio">Consultando...</div>';
+
+  const { data, error } = await db
+    .from('registros_actividad')
+    .select('*')
+    .order('creado_en', { ascending: false })
+    .limit(300);
+
+  if (error) {
+    cont.innerHTML = '<div class="vacio">No se pudo cargar.<br>' + esc(error.message) + '</div>';
+    return;
+  }
+
+  const filas = data || [];
+  const pendientes = filas.filter(f => f.requiere_revision && !f.revisado_en).length;
+
+  actualizarChapa('chapa-actividad', pendientes);
+
+  document.getElementById('resumen-actividad').innerHTML =
+    'Reportes <b>' + filas.length + '</b>' +
+    (pendientes ? ' · Sin revisar <b>' + pendientes + '</b>' : '');
+
+  if (!filas.length) {
+    cont.innerHTML = '<div class="vacio">Todavía no hay reportes de actividad.</div>';
+    return;
+  }
+
+  cont.innerHTML = filas.map(function (f) {
+    const sinRevisar = f.requiere_revision && !f.revisado_en;
+
+    let titulo, cuerpo;
+    if (f.tipo === 'sectores') {
+      const n = (f.sectores || []).length;
+      titulo = '<span class="etiqueta actividad">' + esc(f.actividad) + '</span>' +
+               '<span class="tarjeta-tit">' + n + (n === 1 ? ' sector' : ' sectores') + '</span>';
+      cuerpo = '<div class="sectores-lista">' + esc((f.sectores || []).join('  ·  ')) + '</div>';
+    } else {
+      const cats = (f.categorias || []).map(c => NOMBRE_CATEGORIA[c] || c).join(' · ');
+      titulo = '<span class="etiqueta revision">Fuera de paneles</span>' +
+               '<span class="tarjeta-tit">' + esc(cats) + '</span>';
+      cuerpo = '';
+    }
+
+    let acciones = '';
+    if (sinRevisar) {
+      acciones = '<button class="btn primario" onclick="marcarRevisado(\'' + f.id + '\')">Marcar revisado</button>';
+    } else if (f.revisado_en) {
+      acciones = '<span class="etiqueta lista">Revisado ' + esc(fechaGT(new Date(f.revisado_en))) + '</span>';
+    }
+
+    return '<div class="tarjeta' + (sinRevisar ? ' marcada' : '') + '">' +
+      '<div class="tarjeta-hdr">' +
+        '<span class="tarjeta-fecha">' + esc(fechaHoraGT(f.creado_en)) + '</span>' +
+        titulo +
+        '<span class="tarjeta-acc">' + acciones + '</span>' +
+      '</div>' +
+      cuerpo +
+      (f.notas ? '<div class="notas-txt">' + esc(f.notas) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+/**
+ * Baja la bandera de un reporte. Se guarda quién la bajó y cuándo: una bandera
+ * que desaparece sin dejar rastro no sirve como control.
+ */
+async function marcarRevisado(id) {
+  const { data: { session } } = await db.auth.getSession();
+  const { error } = await db
+    .from('registros_actividad')
+    .update({
+      revisado_en: new Date().toISOString(),
+      revisado_por: session ? session.user.email : null,
+    })
+    .eq('id', id);
+
+  if (error) {
+    alert('No se pudo marcar como revisado: ' + error.message);
+    return;
+  }
+  cargarActividad();
+}
+
+/* ================= INSUMOS ================= */
+async function cargarInsumos() {
+  const cont = document.getElementById('lista-insumos');
+  cont.innerHTML = '<div class="vacio">Consultando...</div>';
+
+  const { data, error } = await db
+    .from('solicitudes_insumos')
+    .select('*')
+    .order('creado_en', { ascending: false })
+    .limit(300);
+
+  if (error) {
+    cont.innerHTML = '<div class="vacio">No se pudo cargar.<br>' + esc(error.message) + '</div>';
+    return;
+  }
+
+  const filas = data || [];
+  const pendientes = filas.filter(f => f.estado === 'pendiente').length;
+
+  actualizarChapa('chapa-insumos', pendientes);
+
+  document.getElementById('resumen-insumos').innerHTML =
+    'Solicitudes <b>' + filas.length + '</b>' +
+    (pendientes ? ' · Pendientes <b>' + pendientes + '</b>' : '');
+
+  if (!filas.length) {
+    cont.innerHTML = '<div class="vacio">Todavía no hay solicitudes de insumos.</div>';
+    return;
+  }
+
+  cont.innerHTML = filas.map(function (f) {
+    const pendiente = f.estado === 'pendiente';
+    const items = Array.isArray(f.items) ? f.items : [];
+
+    const acciones = pendiente
+      ? '<button class="btn primario" onclick="marcarAtendida(\'' + f.id + '\')">Marcar atendida</button>'
+      : '<span class="etiqueta lista">Atendida ' +
+        esc(f.atendida_en ? fechaGT(new Date(f.atendida_en)) : '') + '</span>';
+
+    return '<div class="tarjeta' + (pendiente ? ' marcada' : '') + '">' +
+      '<div class="tarjeta-hdr">' +
+        '<span class="tarjeta-fecha">' + esc(fechaHoraGT(f.creado_en)) + '</span>' +
+        '<span class="etiqueta ' + (pendiente ? 'pendiente' : 'lista') + '">' + esc(f.estado) + '</span>' +
+        '<span class="tarjeta-tit">' + items.length +
+          (items.length === 1 ? ' insumo' : ' insumos') + '</span>' +
+        '<span class="tarjeta-acc">' + acciones + '</span>' +
+      '</div>' +
+      '<div class="lista-items">' +
+        items.map(it =>
+          '<div><span>' + esc(it.descripcion) + '</span>' +
+          (it.cantidad ? '<span class="cant">' + esc(it.cantidad) + '</span>' : '') +
+          '</div>').join('') +
+      '</div>' +
+      (f.notas ? '<div class="notas-txt">' + esc(f.notas) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+async function marcarAtendida(id) {
+  const { data: { session } } = await db.auth.getSession();
+  const { error } = await db
+    .from('solicitudes_insumos')
+    .update({
+      estado: 'atendida',
+      atendida_en: new Date().toISOString(),
+      atendida_por: session ? session.user.email : null,
+    })
+    .eq('id', id);
+
+  if (error) {
+    alert('No se pudo marcar como atendida: ' + error.message);
+    return;
+  }
+  cargarInsumos();
+}
+
+/* ================= VISITAS ================= */
+async function cargarVisitas() {
+  const cont = document.getElementById('lista-visitas');
+  cont.innerHTML = '<div class="vacio">Consultando...</div>';
+
+  const { data, error } = await db
+    .from('visitas')
+    .select('*')
+    .order('creado_en', { ascending: false })
+    .limit(300);
+
+  if (error) {
+    cont.innerHTML = '<div class="vacio">No se pudo cargar.<br>' + esc(error.message) + '</div>';
+    return;
+  }
+
+  const filas = data || [];
+  document.getElementById('resumen-visitas').innerHTML = 'Visitas <b>' + filas.length + '</b>';
+
+  if (!filas.length) {
+    cont.innerHTML = '<div class="vacio">Todavía no hay visitas registradas.</div>';
+    return;
+  }
+
+  cont.innerHTML = filas.map(f =>
+    '<div class="tarjeta">' +
+      '<div class="tarjeta-hdr">' +
+        '<span class="tarjeta-fecha">' + esc(fechaHoraGT(f.creado_en)) + '</span>' +
+        '<span class="tarjeta-tit">' + esc(f.nombre) + '</span>' +
+        (f.empresa ? '<span class="etiqueta actividad">' + esc(f.empresa) + '</span>' : '') +
+      '</div>' +
+      (f.motivo ? '<div class="notas-txt">' + esc(f.motivo) + '</div>' : '') +
+      '</div>').join('');
+}
+
+/**
+ * La chapa roja en la pestaña avisa que hay algo esperando. Sin esto habría que
+ * entrar a cada pestaña para descubrir que quedó una bandera sin bajar.
+ */
+function actualizarChapa(id, cantidad) {
+  const chapa = document.getElementById(id);
+  chapa.textContent = cantidad;
+  chapa.style.display = cantidad ? 'inline-block' : 'none';
+}
+
+/** Cuenta pendientes al entrar, sin abrir cada pestaña. */
+async function contarPendientes() {
+  const [act, ins] = await Promise.all([
+    db.from('registros_actividad').select('id', { count: 'exact', head: true })
+      .eq('requiere_revision', true).is('revisado_en', null),
+    db.from('solicitudes_insumos').select('id', { count: 'exact', head: true })
+      .eq('estado', 'pendiente'),
+  ]);
+  actualizarChapa('chapa-actividad', act.count || 0);
+  actualizarChapa('chapa-insumos', ins.count || 0);
 }
 
 /* ---------- Arranque ---------- */
