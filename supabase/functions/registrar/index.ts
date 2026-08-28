@@ -189,10 +189,18 @@ Deno.serve(async (req: Request) => {
     const nombre = texto(body.nombre, 120);
     if (!nombre) return json({ ok: false, error: "El nombre del visitante es obligatorio" }, 400);
 
+    // El documento es el punto del registro de visitas: sin el, la bitacora no
+    // sirve para saber quien estuvo en la planta.
+    const identificacion = texto(body.identificacion, 60);
+    if (!identificacion) {
+      return json({ ok: false, error: "La identificacion del visitante es obligatoria" }, 400);
+    }
+
     const { data, error } = await db
       .from("visitas")
       .insert({
         nombre,
+        identificacion,
         empresa: texto(body.empresa, 120) || null,
         motivo: texto(body.motivo, MAX_NOTAS) || null,
       })

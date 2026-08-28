@@ -153,15 +153,22 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   justify-content:center;margin-bottom:6px;}
 .cuadrante-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
   text-transform:uppercase;color:var(--accent);margin-bottom:7px;text-align:center;}
+/* Los sectores son filas largas de paneles, no cuadrados: se dibujan con la
+   proporcion real, 6 de ancho por 1 de alto. Un solo lugar donde ajustarlo. */
+:root{ --celda-alto:14px; --celda-ancho:84px; --lbl-ancho:22px; }
+
 .rejilla{display:grid;gap:3px;}
-.celda{width:26px;height:26px;background:var(--surface2);border:1px solid var(--border2);
+.celda{width:var(--celda-ancho);height:var(--celda-alto);
+  background:var(--surface2);border:1px solid var(--border2);
   cursor:pointer;padding:0;transition:background .08s,border-color .08s;}
 .celda:hover{border-color:var(--accent);}
 .celda.sel{background:var(--accent);border-color:var(--accent);}
-.cab-celda{width:26px;height:20px;font-family:var(--mono);font-size:10px;color:var(--dim);
-  background:transparent;border:none;cursor:pointer;padding:0;}
-.cab-celda:hover{color:var(--accent);}
-.esquina{width:26px;height:20px;}
+.cab-col{width:var(--celda-ancho);height:17px;font-family:var(--mono);font-size:10px;
+  color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
+.cab-fila{width:var(--lbl-ancho);height:var(--celda-alto);font-family:var(--mono);
+  font-size:10px;color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
+.cab-col:hover,.cab-fila:hover{color:var(--accent);}
+.esquina{width:var(--lbl-ancho);height:17px;}
 
 .mapa-pie{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
   font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:12px;}
@@ -325,6 +332,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
     <div class="bloque">
       <div class="bloque-lbl">Nombre del visitante</div>
       <input type="text" id="visita-nombre" placeholder="Nombre y apellido" autocomplete="off"/>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Identificación</div>
+      <input type="text" id="visita-identificacion" placeholder="DPI, pasaporte o licencia" autocomplete="off"/>
     </div>
 
     <div class="bloque">
@@ -676,7 +688,7 @@ async function enviarInsumos() {
     rejilla.appendChild(Object.assign(document.createElement('div'), { className: 'esquina' }));
     for (let c = 1; c <= q.columnas; c++) {
       const b = document.createElement('button');
-      b.className = 'cab-celda';
+      b.className = 'cab-col';
       b.textContent = c;
       b.title = 'Columna ' + c + ' completa';
       b.addEventListener('click', () => alternarGrupo(q, null, c));
@@ -687,7 +699,7 @@ async function enviarInsumos() {
       const letra = String.fromCharCode(65 + f);
 
       const b = document.createElement('button');
-      b.className = 'cab-celda';
+      b.className = 'cab-fila';
       b.textContent = letra;
       b.title = 'Fila ' + letra + ' completa';
       b.addEventListener('click', () => alternarGrupo(q, letra, null));
@@ -836,7 +848,7 @@ async function enviarActividad() {
 
 /* ================= VISITAS ================= */
 function abrirVisitas() {
-  ['visita-nombre', 'visita-empresa', 'visita-motivo'].forEach(function (id) {
+  ['visita-nombre', 'visita-identificacion', 'visita-empresa', 'visita-motivo'].forEach(function (id) {
     document.getElementById(id).value = '';
   });
   mostrar('p-visitas');
@@ -851,12 +863,20 @@ async function enviarVisita() {
     return;
   }
 
+  const identificacion = document.getElementById('visita-identificacion').value.trim();
+  if (!identificacion) {
+    mostrarError('Falta la identificación',
+      'Anotá el número de DPI, pasaporte o licencia del visitante.');
+    return;
+  }
+
   enviando = true;
   mostrar('p-enviando');
 
   const r = await enviarRegistro({
     tipo: 'visita',
     nombre: nombre,
+    identificacion: identificacion,
     empresa: document.getElementById('visita-empresa').value.trim(),
     motivo: document.getElementById('visita-motivo').value.trim(),
   });

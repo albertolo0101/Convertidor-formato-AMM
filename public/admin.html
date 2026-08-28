@@ -820,6 +820,7 @@ async function cargarVisitas() {
       '<div class="tarjeta-hdr">' +
         '<span class="tarjeta-fecha">' + esc(fechaHoraGT(f.creado_en)) + '</span>' +
         '<span class="tarjeta-tit">' + esc(f.nombre) + '</span>' +
+        (f.identificacion ? '<span class="etiqueta pendiente">' + esc(f.identificacion) + '</span>' : '') +
         (f.empresa ? '<span class="etiqueta actividad">' + esc(f.empresa) + '</span>' : '') +
       '</div>' +
       (f.motivo ? '<div class="notas-txt">' + esc(f.motivo) + '</div>' : '') +

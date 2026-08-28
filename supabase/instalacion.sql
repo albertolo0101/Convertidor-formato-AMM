@@ -255,12 +255,19 @@ create index if not exists registros_actividad_revision_idx
 -- ----------------------------------------------------------------------------
 
 create table if not exists public.visitas (
-  id        uuid primary key default gen_random_uuid(),
-  creado_en timestamptz not null default now(),
-  nombre    text not null check (btrim(nombre) <> ''),
-  empresa   text,
-  motivo    text
+  id             uuid primary key default gen_random_uuid(),
+  creado_en      timestamptz not null default now(),
+  nombre         text not null check (btrim(nombre) <> ''),
+  -- Documento de identidad. Nullable en la tabla para no romper instalaciones
+  -- previas; la obligatoriedad la impone la Edge Function, que es la unica via
+  -- de escritura.
+  identificacion text,
+  empresa        text,
+  motivo         text
 );
+
+-- Para instalaciones que ya existian antes de que se pidiera el documento
+alter table public.visitas add column if not exists identificacion text;
 
 create index if not exists visitas_creado_idx
   on public.visitas (creado_en desc);
