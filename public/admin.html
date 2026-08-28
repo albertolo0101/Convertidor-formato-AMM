@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gravitas · Administración</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:#080b12; --surface:#0e1320; --surface2:#141a28;
+  --border:#1a2235; --border2:#243048;
+  --accent:#00e5ff; --accent-dim:rgba(0,229,255,.1);
+  --green:#00ff88; --green-dim:rgba(0,255,136,.08);
+  --yellow:#ffd166; --yellow-dim:rgba(255,209,102,.08);
+  --red:#ff4466; --red-dim:rgba(255,68,102,.08);
+  --text:#ccd6f6; --dim:#4a5878; --bright:#e8f0ff;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:32px 24px 80px;}
+
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:30px;flex-wrap:wrap;}
+.hdr-logo{height:44px;width:auto;display:block;}
+.hdr-txt h1{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--bright);letter-spacing:-.02em;}
+.hdr-txt p{font-size:10px;color:var(--dim);margin-top:3px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;}
+.hdr-user{margin-left:auto;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:11px;color:var(--dim);}
+
+button,select,input{font-family:var(--mono);}
+.btn{background:transparent;border:1px solid var(--border2);color:var(--text);
+  padding:9px 16px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  cursor:pointer;transition:border-color .15s,color .15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn.primario{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+
+/* ---------- Pantallas ---------- */
+.vista{display:none;}
+.vista.activa{display:block;}
+
+.centro{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.centro h2{font-family:var(--mono);font-size:22px;color:var(--bright);margin-bottom:12px;}
+.centro p{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.7;max-width:420px;margin-bottom:26px;}
+.btn-google{display:flex;align-items:center;gap:12px;background:var(--surface);
+  border:1px solid var(--border2);color:var(--bright);padding:15px 28px;
+  font-family:var(--mono);font-size:14px;cursor:pointer;transition:border-color .15s;}
+.btn-google:hover{border-color:var(--accent);}
+
+/* ---------- Controles ---------- */
+.controles{background:var(--surface);border:1px solid var(--border);padding:18px;
+  display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;}
+.campo{display:flex;flex-direction:column;gap:6px;}
+.campo label{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dim);}
+.campo input,.campo select{background:var(--bg);border:1px solid var(--border2);
+  color:var(--text);padding:8px 10px;font-size:12px;}
+.controles .acciones{margin-left:auto;display:flex;gap:10px;}
+
+.resumen{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:26px;padding:0 2px;
+  font-family:var(--mono);font-size:11px;color:var(--dim);}
+.resumen b{color:var(--accent);font-weight:600;}
+
+/* ---------- Tabla ---------- */
+.dia{margin-bottom:26px;}
+.dia-hdr{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);padding-bottom:9px;
+  border-bottom:1px solid var(--border2);margin-bottom:2px;}
+.fila{display:grid;grid-template-columns:74px 1fr 108px 96px;gap:14px;align-items:center;
+  padding:11px 4px;border-bottom:1px solid rgba(26,34,53,.55);font-family:var(--mono);font-size:13px;}
+.fila:last-child{border-bottom:none;}
+.f-hora{color:var(--accent);}
+.f-nombre{color:var(--bright);font-family:var(--sans);font-size:14px;}
+.f-accion{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  text-align:center;padding:4px 0;border:1px solid;}
+.f-accion.entrada{color:var(--green);border-color:rgba(0,255,136,.35);background:var(--green-dim);}
+.f-accion.salida{color:var(--yellow);border-color:rgba(255,209,102,.35);background:var(--yellow-dim);}
+.f-foto{display:flex;justify-content:flex-end;}
+.f-foto img{width:64px;height:48px;object-fit:cover;border:1px solid var(--border2);
+  cursor:pointer;transform:scaleX(-1);transition:border-color .15s;}
+.f-foto img:hover{border-color:var(--accent);}
+.sin-foto{font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px dashed var(--border2);padding:5px 7px;color:var(--dim);}
+.sin-foto.alerta{color:var(--red);border-color:rgba(255,68,102,.4);}
+
+.vacio{background:var(--surface);border:1px solid var(--border);padding:40px;
+  text-align:center;font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.7;}
+
+.nota{font-family:var(--mono);font-size:10px;color:var(--dim);line-height:1.7;
+  margin-top:30px;padding-top:18px;border-top:1px solid var(--border);}
+
+/* ---------- Visor de foto ---------- */
+.visor{position:fixed;inset:0;background:rgba(3,5,10,.94);z-index:20;
+  display:none;align-items:center;justify-content:center;padding:28px;cursor:zoom-out;}
+.visor.abierto{display:flex;}
+.visor-caja{text-align:center;}
+.visor img{max-width:90vw;max-height:78vh;border:1px solid var(--border2);transform:scaleX(-1);}
+.visor-pie{font-family:var(--mono);font-size:12px;color:var(--text);margin-top:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <img class="hdr-logo" src="logo.png" alt="Gravitas"/>
+    <div class="hdr-txt">
+      <h1>ADMINISTRACIÓN</h1>
+      <p>Asistencia · Mantenimiento</p>
+    </div>
+    <div class="hdr-user" id="hdr-user" style="display:none;">
+      <span id="user-email"></span>
+      <button class="btn" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </div>
+
+  <!-- Cargando -->
+  <div class="vista activa" id="v-cargando">
+    <div class="centro"><p>Verificando sesión...</p></div>
+  </div>
+
+  <!-- Login -->
+  <div class="vista" id="v-login">
+    <div class="centro">
+      <h2>Acceso restringido</h2>
+      <p>Este panel es solo para administradores. Los trabajadores marcan
+         asistencia en el kiosko, que no necesita iniciar sesión.</p>
+      <button class="btn-google" onclick="entrarConGoogle()">Entrar con Google</button>
+    </div>
+  </div>
+
+  <!-- Autenticado pero sin permiso -->
+  <div class="vista" id="v-sin-permiso">
+    <div class="centro">
+      <h2>Sin permiso</h2>
+      <p>Iniciaste sesión como <b id="email-rechazado"></b>, pero esa cuenta no
+         está autorizada para ver los registros.</p>
+      <button class="btn" onclick="cerrarSesion()">Salir y probar con otra cuenta</button>
+    </div>
+  </div>
+
+  <!-- Panel -->
+  <div class="vista" id="v-panel">
+    <div class="controles">
+      <div class="campo">
+        <label for="desde">Desde</label>
+        <input type="date" id="desde"/>
+      </div>
+      <div class="campo">
+        <label for="hasta">Hasta</label>
+        <input type="date" id="hasta"/>
+      </div>
+      <div class="campo">
+        <label for="quien">Trabajador</label>
+        <select id="quien"><option value="">Todos</option></select>
+      </div>
+      <div class="acciones">
+        <button class="btn primario" onclick="cargar()">Consultar</button>
+        <button class="btn" id="btn-csv" onclick="exportarCsv()">Exportar CSV</button>
+      </div>
+    </div>
+
+    <div class="resumen" id="resumen"></div>
+    <div id="registros"></div>
+
+    <div class="nota">
+      Las fotos se borran automáticamente a los 10 días; los registros se
+      conservan. Una marca que dice SIN FOTO se registró sin cámara disponible
+      &mdash; conviene revisarla.
+    </div>
+  </div>
+
+</div>
+
+<div class="visor" id="visor" onclick="cerrarVisor()">
+  <div class="visor-caja">
+    <img id="visor-img" src="" alt="Foto de la marca"/>
+    <div class="visor-pie" id="visor-pie"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://hfudsedbkmbptxidyzyy.supabase.co';
+// Clave publicable: es publica por diseño. Con la RLS cerrada no puede leer ni
+// escribir nada por si sola — todo depende de la sesion de Google.
+const SUPABASE_KEY = 'sb_publishable_gFWtRg4rBwlAPZ3dp0M3ug_nL5T6x_6';
+
+const RETENCION_FOTOS_DIAS = 10;
+const TZ = 'America/Guatemala';
+// Guatemala no aplica horario de verano, asi que el desfase es fijo todo el año.
+const DESFASE_GT = '-06:00';
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let registros = [];
+
+/* ---------- Utilidades de fecha ---------- */
+function fechaGT(d) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+function horaGT(d) {
+  return new Intl.DateTimeFormat('es-GT', {
+    timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(d);
+}
+function diaLargoGT(iso) {
+  const [a, m, dd] = iso.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, dd)).toLocaleDateString('es-GT', {
+    timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }).toUpperCase();
+}
+
+function mostrarVista(id) {
+  document.querySelectorAll('.vista').forEach(v => v.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+}
+
+function esc(t) {
+  const d = document.createElement('div');
+  d.textContent = t == null ? '' : String(t);
+  return d.innerHTML;
+}
+
+/* ---------- Sesión ---------- */
+async function entrarConGoogle() {
+  await db.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  });
+}
+
+async function cerrarSesion() {
+  await db.auth.signOut();
+  window.location.reload();
+}
+
+async function iniciar() {
+  const { data: { session } } = await db.auth.getSession();
+
+  if (!session) {
+    mostrarVista('v-login');
+    return;
+  }
+
+  const email = session.user.email;
+
+  // La RLS de 'admins' solo devuelve filas si el email de la sesión está en la
+  // tabla. Consulta vacía = cuenta no autorizada. No se decide en el navegador.
+  const { data: filas, error } = await db.from('admins').select('email');
+
+  if (error || !filas || filas.length === 0) {
+    document.getElementById('email-rechazado').textContent = email;
+    mostrarVista('v-sin-permiso');
+    return;
+  }
+
+  document.getElementById('user-email').textContent = email;
+  document.getElementById('hdr-user').style.display = 'flex';
+
+  const hoy = new Date();
+  const hace = new Date(Date.now() - (RETENCION_FOTOS_DIAS - 1) * 86400000);
+  document.getElementById('hasta').value = fechaGT(hoy);
+  document.getElementById('desde').value = fechaGT(hace);
+
+  await llenarTrabajadores();
+  mostrarVista('v-panel');
+  await cargar();
+}
+
+async function llenarTrabajadores() {
+  const { data } = await db.from('trabajadores').select('id, nombre').order('nombre');
+  const sel = document.getElementById('quien');
+  (data || []).forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id;
+    o.textContent = t.nombre;
+    sel.appendChild(o);
+  });
+}
+
+/* ---------- Datos ---------- */
+async function cargar() {
+  const desde = document.getElementById('desde').value;
+  const hasta = document.getElementById('hasta').value;
+  const quien = document.getElementById('quien').value;
+  const cont = document.getElementById('registros');
+
+  if (!desde || !hasta) {
+    cont.innerHTML = '<div class="vacio">Elegí un rango de fechas.</div>';
+    return;
+  }
+
+  cont.innerHTML = '<div class="vacio">Consultando...</div>';
+
+  let q = db.from('asistencia')
+    .select('id, accion, marcado_en, foto_path, foto_purgada, trabajadores(nombre)')
+    .gte('marcado_en', desde + 'T00:00:00' + DESFASE_GT)
+    .lte('marcado_en', hasta + 'T23:59:59' + DESFASE_GT)
+    .order('marcado_en', { ascending: false });
+
+  if (quien) q = q.eq('trabajador_id', quien);
+
+  const { data, error } = await q;
+
+  if (error) {
+    cont.innerHTML = '<div class="vacio">No se pudieron cargar los registros.<br>' + esc(error.message) + '</div>';
+    return;
+  }
+
+  registros = data || [];
+  await agregarUrlsDeFotos(registros);
+  pintar(registros);
+}
+
+/**
+ * El bucket es privado: las imágenes solo se ven con URLs firmadas temporales.
+ * Se piden todas juntas en una sola llamada en vez de una por fila.
+ */
+async function agregarUrlsDeFotos(filas) {
+  const rutas = filas.filter(f => f.foto_path).map(f => f.foto_path);
+  if (!rutas.length) return;
+
+  const { data } = await db.storage.from('fotos').createSignedUrls(rutas, 3600);
+  const porRuta = {};
+  (data || []).forEach(r => { if (r.signedUrl) porRuta[r.path] = r.signedUrl; });
+  filas.forEach(f => { f.url_foto = f.foto_path ? porRuta[f.foto_path] : null; });
+}
+
+/* ---------- Render ---------- */
+function pintar(filas) {
+  const cont = document.getElementById('registros');
+  const resumen = document.getElementById('resumen');
+
+  if (!filas.length) {
+    resumen.innerHTML = '';
+    cont.innerHTML = '<div class="vacio">No hay marcas en este rango.</div>';
+    return;
+  }
+
+  const entradas = filas.filter(f => f.accion === 'entrada').length;
+  const salidas = filas.filter(f => f.accion === 'salida').length;
+  const sinFoto = filas.filter(f => !f.foto_path && !f.foto_purgada).length;
+
+  resumen.innerHTML =
+    'Marcas <b>' + filas.length + '</b>' +
+    ' · Entradas <b>' + entradas + '</b>' +
+    ' · Salidas <b>' + salidas + '</b>' +
+    (sinFoto ? ' · Sin foto <b>' + sinFoto + '</b>' : '');
+
+  // Agrupar por día de Guatemala, no por día UTC
+  const porDia = {};
+  filas.forEach(f => {
+    const dia = fechaGT(new Date(f.marcado_en));
+    (porDia[dia] = porDia[dia] || []).push(f);
+  });
+
+  cont.innerHTML = Object.keys(porDia).sort().reverse().map(dia => {
+    const cuerpo = porDia[dia].map(f => {
+      const nombre = f.trabajadores ? f.trabajadores.nombre : '(trabajador eliminado)';
+      let foto;
+      if (f.url_foto) {
+        foto = '<img src="' + esc(f.url_foto) + '" alt="Marca de ' + esc(nombre) + '"' +
+               ' onclick="abrirVisor(this.src, \'' + esc(nombre).replace(/'/g, '') +
+               ' · ' + esc(horaGT(new Date(f.marcado_en))) + '\')"/>';
+      } else if (f.foto_purgada) {
+        foto = '<span class="sin-foto">Expirada</span>';
+      } else {
+        foto = '<span class="sin-foto alerta">Sin foto</span>';
+      }
+      return '<div class="fila">' +
+        '<span class="f-hora">' + esc(horaGT(new Date(f.marcado_en))) + '</span>' +
+        '<span class="f-nombre">' + esc(nombre) + '</span>' +
+        '<span class="f-accion ' + esc(f.accion) + '">' + esc(f.accion) + '</span>' +
+        '<span class="f-foto">' + foto + '</span>' +
+        '</div>';
+    }).join('');
+    return '<div class="dia"><div class="dia-hdr">' + esc(diaLargoGT(dia)) + '</div>' + cuerpo + '</div>';
+  }).join('');
+}
+
+function abrirVisor(src, pie) {
+  document.getElementById('visor-img').src = src;
+  document.getElementById('visor-pie').textContent = pie;
+  document.getElementById('visor').classList.add('abierto');
+}
+function cerrarVisor() {
+  document.getElementById('visor').classList.remove('abierto');
+  document.getElementById('visor-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarVisor(); });
+
+/* ---------- Exportar ---------- */
+function exportarCsv() {
+  if (!registros.length) return;
+
+  // El código de 4 dígitos NO se exporta: es la credencial del trabajador y no
+  // tiene por qué terminar en una hoja de cálculo compartida.
+  const filas = [['fecha', 'hora', 'trabajador', 'accion', 'foto']];
+  registros.slice().reverse().forEach(f => {
+    const d = new Date(f.marcado_en);
+    filas.push([
+      fechaGT(d),
+      horaGT(d),
+      f.trabajadores ? f.trabajadores.nombre : '',
+      f.accion,
+      f.foto_path ? 'si' : (f.foto_purgada ? 'expirada' : 'no'),
+    ]);
+  });
+
+  const csv = filas.map(f => f.map(c => {
+    const s = String(c == null ? '' : c);
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\r\n');
+
+  // BOM para que Excel abra los acentos correctamente
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'asistencia_' + document.getElementById('desde').value +
+               '_a_' + document.getElementById('hasta').value + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- Arranque ---------- */
+db.auth.onAuthStateChange((evento) => {
+  if (evento === 'SIGNED_IN' || evento === 'SIGNED_OUT') iniciar();
+});
+iniciar();
+</script>
+</body>
+</html>
