@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Gravitas · Asistencia</title>
+<title>Gravitas · Kiosko</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
@@ -26,19 +26,19 @@ body::before{content:'';position:fixed;inset:0;
   background-size:48px 48px;pointer-events:none;z-index:0;}
 
 .wrap{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;
-  max-width:640px;margin:0 auto;padding:28px 24px 32px;}
+  max-width:900px;margin:0 auto;padding:22px 22px 24px;}
 
 .hdr{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-shrink:0;}
-.hdr-logo{height:44px;width:auto;display:block;}
-.hdr-txt h1{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--bright);letter-spacing:-.02em;}
+.hdr-logo{height:40px;width:auto;display:block;}
+.hdr-txt h1{font-family:var(--mono);font-size:18px;font-weight:700;color:var(--bright);letter-spacing:-.02em;}
 .hdr-txt p{font-size:10px;color:var(--dim);margin-top:3px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;}
 .reloj{margin-left:auto;text-align:right;font-family:var(--mono);}
-.reloj-hora{font-size:26px;font-weight:700;color:var(--accent);line-height:1;letter-spacing:-.01em;}
+.reloj-hora{font-size:24px;font-weight:700;color:var(--accent);line-height:1;}
 .reloj-fecha{font-size:10px;color:var(--dim);margin-top:5px;letter-spacing:.08em;}
 
 /* ---------- Quien esta dentro ---------- */
 .dentro{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  padding:11px 14px;margin-bottom:6px;min-height:42px;
+  padding:9px 14px;margin-bottom:6px;min-height:38px;flex-shrink:0;
   background:var(--surface);border:1px solid var(--border);}
 .dentro-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.2em;
   text-transform:uppercase;color:var(--dim);}
@@ -49,62 +49,150 @@ body::before{content:'';position:fixed;inset:0;
 .dentro-desde{color:var(--dim);font-size:11px;}
 .dentro-nadie{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em;}
 
-/* Cada pantalla ocupa el espacio restante y se centra */
-.pantalla{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;}
+/* ---------- Pantallas ---------- */
+.pantalla{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;min-height:0;}
 .pantalla.activa{display:flex;}
+/* Las pantallas con formulario se recorren; el resto se centra */
+.pantalla.forma{justify-content:flex-start;overflow-y:auto;width:100%;padding-top:4px;}
 
-/* ---------- Pantalla 1: codigo ---------- */
 .instruccion{font-family:var(--mono);font-size:12px;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--dim);margin-bottom:22px;text-align:center;}
+  text-transform:uppercase;color:var(--dim);margin-bottom:18px;text-align:center;}
 
-.puntos{display:flex;gap:18px;margin-bottom:30px;}
-.punto{width:20px;height:20px;border:2px solid var(--border2);border-radius:50%;
+/* ---------- Teclado ---------- */
+.puntos{display:flex;gap:16px;margin-bottom:22px;}
+.punto{width:18px;height:18px;border:2px solid var(--border2);border-radius:50%;
   transition:background .12s,border-color .12s,transform .12s;}
 .punto.lleno{background:var(--accent);border-color:var(--accent);transform:scale(1.12);}
 
-.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:360px;}
-.tecla{aspect-ratio:1.45;background:var(--surface);border:1px solid var(--border);
-  color:var(--bright);font-family:var(--mono);font-size:30px;font-weight:600;
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;width:100%;max-width:310px;}
+.tecla{aspect-ratio:1.6;background:var(--surface);border:1px solid var(--border);
+  color:var(--bright);font-family:var(--mono);font-size:26px;font-weight:600;
   cursor:pointer;transition:background .1s,border-color .1s;
   display:flex;align-items:center;justify-content:center;}
 .tecla:hover{border-color:var(--border2);background:var(--surface2);}
 .tecla:active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
-.tecla.aux{font-size:15px;color:var(--dim);letter-spacing:.08em;}
+.tecla.aux{font-size:13px;color:var(--dim);letter-spacing:.08em;}
 .tecla.vacia{background:none;border:none;cursor:default;}
 .tecla.vacia:hover{background:none;}
 
-/* ---------- Pantalla 2: camara ---------- */
-.camara-caja{position:relative;width:100%;max-width:420px;aspect-ratio:4/3;
-  border:1px solid var(--border2);background:#000;overflow:hidden;margin-bottom:22px;}
+/* ---------- Botones de modulo ---------- */
+.modulos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  width:100%;max-width:640px;margin-top:26px;}
+.modulo{background:var(--surface);border:1px solid var(--border2);color:var(--bright);
+  padding:22px 12px;font-family:var(--mono);font-size:13px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;line-height:1.5;
+  transition:border-color .15s,background .15s;}
+.modulo:hover{border-color:var(--accent);background:var(--accent-dim);color:var(--accent);}
+
+/* ---------- Camara ---------- */
+.camara-caja{position:relative;width:100%;max-width:400px;aspect-ratio:4/3;
+  border:1px solid var(--border2);background:#000;overflow:hidden;margin-bottom:20px;}
 .camara-caja video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
 .cuenta{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:var(--mono);font-size:96px;font-weight:700;color:var(--accent);
+  font-family:var(--mono);font-size:90px;font-weight:700;color:var(--accent);
   text-shadow:0 0 30px rgba(0,229,255,.5);pointer-events:none;}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
 .flash.dispara{animation:flash .35s ease-out;}
 @keyframes flash{from{opacity:.85;}to{opacity:0;}}
 
-/* ---------- Pantalla 3: resultado ---------- */
-.res-nombre{font-family:var(--mono);font-size:clamp(28px,7vw,44px);font-weight:700;
-  color:var(--bright);text-align:center;margin-bottom:20px;letter-spacing:-.02em;}
-.res-accion{font-family:var(--mono);font-size:clamp(30px,8vw,52px);font-weight:700;
-  letter-spacing:.1em;padding:14px 40px;border:2px solid;margin-bottom:18px;}
+/* ---------- Resultado ---------- */
+.res-nombre{font-family:var(--mono);font-size:clamp(26px,6vw,40px);font-weight:700;
+  color:var(--bright);text-align:center;margin-bottom:18px;letter-spacing:-.02em;}
+.res-accion{font-family:var(--mono);font-size:clamp(28px,7vw,46px);font-weight:700;
+  letter-spacing:.1em;padding:12px 36px;border:2px solid;margin-bottom:16px;}
 .res-accion.entrada{color:var(--green);border-color:var(--green);background:var(--green-dim);}
 .res-accion.salida{color:var(--yellow);border-color:var(--yellow);background:rgba(255,209,102,.08);}
-.res-hora{font-family:var(--mono);font-size:32px;color:var(--accent);letter-spacing:.04em;}
-.res-nota{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:26px;letter-spacing:.06em;}
+.res-hora{font-family:var(--mono);font-size:30px;color:var(--accent);}
+.res-nota{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:24px;letter-spacing:.06em;text-align:center;}
 
-/* ---------- Pantalla de error ---------- */
-.err-icono{font-family:var(--mono);font-size:64px;color:var(--red);margin-bottom:18px;line-height:1;}
+.ok-icono{font-family:var(--mono);font-size:64px;color:var(--green);margin-bottom:16px;line-height:1;}
+.err-icono{font-family:var(--mono);font-size:60px;color:var(--red);margin-bottom:16px;line-height:1;}
 .err-msg{font-family:var(--mono);font-size:17px;color:var(--bright);text-align:center;
-  max-width:400px;line-height:1.6;margin-bottom:10px;}
-.err-sub{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center;max-width:400px;line-height:1.6;}
+  max-width:420px;line-height:1.6;margin-bottom:10px;}
+.err-sub{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center;max-width:420px;line-height:1.6;}
+.cargando{font-family:var(--mono);font-size:14px;color:var(--dim);letter-spacing:.18em;text-transform:uppercase;}
 
-.cargando{font-family:var(--mono);font-size:14px;color:var(--dim);letter-spacing:.18em;
-  text-transform:uppercase;}
+/* ---------- Formularios ---------- */
+.forma-hdr{display:flex;align-items:center;width:100%;margin-bottom:16px;gap:14px;flex-shrink:0;}
+.forma-hdr h2{font-family:var(--mono);font-size:16px;color:var(--bright);
+  letter-spacing:.06em;text-transform:uppercase;}
+.btn-volver{margin-left:auto;background:transparent;border:1px solid var(--border2);
+  color:var(--dim);padding:8px 15px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;}
+.btn-volver:hover{border-color:var(--red);color:var(--red);}
+
+.bloque{background:var(--surface);border:1px solid var(--border);padding:16px;
+  width:100%;margin-bottom:14px;}
+.bloque-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
+
+input[type=text],textarea,select{width:100%;background:var(--bg);
+  border:1px solid var(--border2);color:var(--text);padding:11px 12px;
+  font-family:var(--mono);font-size:14px;user-select:text;-webkit-user-select:text;}
+input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);}
+textarea{resize:vertical;min-height:72px;line-height:1.6;}
+
+.item{display:grid;grid-template-columns:1fr 130px 44px;gap:9px;margin-bottom:9px;}
+.btn-quitar{background:transparent;border:1px solid var(--border2);color:var(--dim);
+  font-family:var(--mono);font-size:17px;cursor:pointer;}
+.btn-quitar:hover{border-color:var(--red);color:var(--red);}
+.btn-sumar{background:transparent;border:1px dashed var(--border2);color:var(--dim);
+  width:100%;padding:11px;font-family:var(--mono);font-size:12px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;margin-top:4px;}
+.btn-sumar:hover{border-color:var(--accent);color:var(--accent);}
+
+.btn-enviar{width:100%;background:var(--accent-dim);border:2px solid var(--accent);
+  color:var(--accent);padding:22px;font-family:var(--mono);font-size:17px;
+  font-weight:700;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+  margin-top:6px;margin-bottom:10px;transition:background .15s;}
+.btn-enviar:hover{background:rgba(0,229,255,.2);}
+.btn-enviar:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ---------- Mapa de la planta ---------- */
+.mapa{display:grid;grid-template-columns:auto auto;gap:22px;
+  justify-content:center;margin-bottom:6px;}
+.cuadrante-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:7px;text-align:center;}
+/* Los sectores son filas largas de paneles, no cuadrados: se dibujan con la
+   proporcion real, 6 de ancho por 1 de alto. Un solo lugar donde ajustarlo. */
+:root{ --celda-alto:14px; --celda-ancho:84px; --lbl-ancho:22px; }
+
+.rejilla{display:grid;gap:3px;}
+.celda{width:var(--celda-ancho);height:var(--celda-alto);
+  background:var(--surface2);border:1px solid var(--border2);
+  cursor:pointer;padding:0;transition:background .08s,border-color .08s;}
+.celda:hover{border-color:var(--accent);}
+.celda.sel{background:var(--accent);border-color:var(--accent);}
+.cab-col{width:var(--celda-ancho);height:17px;font-family:var(--mono);font-size:10px;
+  color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
+.cab-fila{width:var(--lbl-ancho);height:var(--celda-alto);font-family:var(--mono);
+  font-size:10px;color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
+.cab-col:hover,.cab-fila:hover{color:var(--accent);}
+.esquina{width:var(--lbl-ancho);height:17px;}
+
+.mapa-pie{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:12px;}
+.mapa-pie b{color:var(--accent);font-weight:600;}
+.btn-limpiar{background:transparent;border:1px solid var(--border2);color:var(--dim);
+  padding:7px 13px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;margin-left:auto;}
+.btn-limpiar:hover{border-color:var(--red);color:var(--red);}
+
+/* ---------- Actividades especiales ---------- */
+.especiales{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
+.especial{display:flex;align-items:center;gap:11px;background:var(--bg);
+  border:1px solid var(--border2);padding:13px;cursor:pointer;
+  font-family:var(--mono);font-size:13px;color:var(--text);transition:border-color .15s;}
+.especial:hover{border-color:var(--accent);}
+.especial.marcada{border-color:var(--yellow);background:rgba(255,209,102,.08);color:var(--yellow);}
+.especial input{width:17px;height:17px;accent-color:var(--yellow);cursor:pointer;flex-shrink:0;}
+.bloque.inhabilitado{opacity:.35;pointer-events:none;}
+.aviso{font-family:var(--mono);font-size:10px;color:var(--dim);
+  line-height:1.6;margin-top:10px;}
+.aviso.alerta{color:var(--yellow);}
 
 .aviso-camara{font-family:var(--mono);font-size:10px;color:var(--dim);
-  text-align:center;margin-top:auto;padding-top:18px;line-height:1.6;flex-shrink:0;}
+  text-align:center;margin-top:auto;padding-top:14px;line-height:1.6;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -113,8 +201,8 @@ body::before{content:'';position:fixed;inset:0;
   <div class="hdr">
     <img class="hdr-logo" src="logo.png" alt="Gravitas"/>
     <div class="hdr-txt">
-      <h1>ASISTENCIA</h1>
-      <p>Planta Solar 5 MW</p>
+      <h1>GRAVITAS</h1>
+      <p>Planta Solar 5 MW · Mantenimiento</p>
     </div>
     <div class="reloj">
       <div class="reloj-hora" id="reloj-hora">--:--</div>
@@ -124,14 +212,19 @@ body::before{content:'';position:fixed;inset:0;
 
   <div class="dentro" id="dentro"></div>
 
-  <!-- 1. Ingreso de codigo -->
+  <!-- ============ Pantalla principal: codigo + modulos ============ -->
   <div class="pantalla activa" id="p-codigo">
     <div class="instruccion">Ingresá tu código</div>
     <div class="puntos" id="puntos"></div>
     <div class="teclado" id="teclado"></div>
+    <div class="modulos">
+      <button class="modulo" onclick="abrirInsumos()">Solicitud<br>de insumos</button>
+      <button class="modulo" onclick="abrirActividad()">Registro<br>de actividad</button>
+      <button class="modulo" onclick="abrirVisitas()">Visitas</button>
+    </div>
   </div>
 
-  <!-- 2. Captura de foto -->
+  <!-- ============ Camara ============ -->
   <div class="pantalla" id="p-camara">
     <div class="instruccion">Mirá a la cámara</div>
     <div class="camara-caja">
@@ -141,12 +234,10 @@ body::before{content:'';position:fixed;inset:0;
     </div>
   </div>
 
-  <!-- 3. Enviando -->
   <div class="pantalla" id="p-enviando">
     <div class="cargando">Registrando...</div>
   </div>
 
-  <!-- 4. Resultado -->
   <div class="pantalla" id="p-resultado">
     <div class="res-nombre" id="res-nombre"></div>
     <div class="res-accion" id="res-accion"></div>
@@ -154,11 +245,111 @@ body::before{content:'';position:fixed;inset:0;
     <div class="res-nota" id="res-nota"></div>
   </div>
 
-  <!-- 5. Error -->
   <div class="pantalla" id="p-error">
     <div class="err-icono">!</div>
     <div class="err-msg" id="err-msg"></div>
     <div class="err-sub" id="err-sub"></div>
+  </div>
+
+  <div class="pantalla" id="p-ok">
+    <div class="ok-icono">✓</div>
+    <div class="err-msg" id="ok-msg"></div>
+    <div class="err-sub" id="ok-sub"></div>
+  </div>
+
+  <!-- ============ Solicitud de insumos ============ -->
+  <div class="pantalla forma" id="p-insumos">
+    <div class="forma-hdr">
+      <h2>Solicitud de insumos</h2>
+      <button class="btn-volver" onclick="reiniciar()">Cancelar</button>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Qué se necesita</div>
+      <div id="items"></div>
+      <button class="btn-sumar" onclick="sumarItem()">+ Agregar otro insumo</button>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Notas (opcional)</div>
+      <textarea id="insumos-notas" placeholder="Urgencia, marca preferida, dónde se usa..."></textarea>
+    </div>
+
+    <button class="btn-enviar" onclick="enviarInsumos()">Solicitar</button>
+  </div>
+
+  <!-- ============ Registro de actividad ============ -->
+  <div class="pantalla forma" id="p-actividad">
+    <div class="forma-hdr">
+      <h2>Registro de actividad</h2>
+      <button class="btn-volver" onclick="reiniciar()">Cancelar</button>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Sectores trabajados — tocá para seleccionar</div>
+      <div class="mapa" id="mapa"></div>
+      <div class="mapa-pie">
+        <span>Seleccionados: <b id="cuenta-sectores">0</b></span>
+        <span>Tocá una letra o un número para toda la fila o columna</span>
+        <button class="btn-limpiar" onclick="limpiarSectores()">Limpiar</button>
+      </div>
+    </div>
+
+    <div class="bloque" id="bloque-actividad">
+      <div class="bloque-lbl">Actividad realizada en esos sectores</div>
+      <select id="actividad">
+        <option value="">Elegir...</option>
+        <option value="fumigacion">Fumigación</option>
+        <option value="poda">Poda</option>
+        <option value="lavado">Lavado</option>
+      </select>
+    </div>
+
+    <div class="bloque" id="bloque-especiales">
+      <div class="bloque-lbl">O bien, otra actividad — sin sectores</div>
+      <div class="especiales" id="especiales"></div>
+      <div class="aviso" id="aviso-especiales">
+        Si marcás alguna de estas, las notas son obligatorias y el reporte queda
+        señalado para revisión del administrador.
+      </div>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Notas <span id="notas-obligatorias" style="display:none;color:var(--yellow);">— obligatorias</span></div>
+      <textarea id="actividad-notas" placeholder="Detalle de lo realizado, observaciones, problemas encontrados..."></textarea>
+    </div>
+
+    <button class="btn-enviar" onclick="enviarActividad()">Ingresar reporte</button>
+  </div>
+
+  <!-- ============ Visitas ============ -->
+  <div class="pantalla forma" id="p-visitas">
+    <div class="forma-hdr">
+      <h2>Registro de visita</h2>
+      <button class="btn-volver" onclick="reiniciar()">Cancelar</button>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Nombre del visitante</div>
+      <input type="text" id="visita-nombre" placeholder="Nombre y apellido" autocomplete="off"/>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Identificación</div>
+      <input type="text" id="visita-identificacion" placeholder="DPI, pasaporte o licencia" autocomplete="off"/>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Empresa (opcional)</div>
+      <input type="text" id="visita-empresa" placeholder="Empresa o institución" autocomplete="off"/>
+    </div>
+
+    <div class="bloque">
+      <div class="bloque-lbl">Motivo (opcional)</div>
+      <textarea id="visita-motivo" placeholder="A qué viene, a quién busca..."></textarea>
+    </div>
+
+    <button class="btn-enviar" onclick="enviarVisita()">Registrar visita</button>
   </div>
 
   <div class="aviso-camara">
@@ -167,20 +358,60 @@ body::before{content:'';position:fixed;inset:0;
 
 </div>
 
+<script src="backend.js"></script>
 <script>
-const FUNCION_URL = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/marcar';
-const ESTADO_URL  = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/estado';
+const FUNCION_URL   = BACKEND.funcion('marcar');
+const ESTADO_URL    = BACKEND.funcion('estado');
+const REGISTRAR_URL = BACKEND.funcion('registrar');
 
-const MS_REFRESCO_DENTRO = 60000;
-
-const SEGUNDOS_CUENTA      = 3;      // cuenta regresiva antes de la foto
+const SEGUNDOS_CUENTA      = 3;
 const MS_MOSTRAR_RESULTADO = 6000;
 const MS_MOSTRAR_ERROR     = 5000;
+const MS_REFRESCO_DENTRO   = 60000;
+
+// El mapa debe coincidir con el de la Edge Function 'registrar', que es donde
+// se valida de verdad. Si cambia acá, tiene que cambiar allá.
+const CUADRANTES = [
+  { id: 'C1', nombre: 'Cuadrante 1', columnas: 4, filas: 18 },
+  { id: 'C3', nombre: 'Cuadrante 3', columnas: 2, filas: 12 },
+  { id: 'C2', nombre: 'Cuadrante 2', columnas: 4, filas: 18 },
+  { id: 'C4', nombre: 'Cuadrante 4', columnas: 2, filas: 12 },
+];
+
+const ESPECIALES = [
+  { id: 'inversores',       nombre: 'Inversores' },
+  { id: 'rondas_antifuego', nombre: 'Rondas antifuego' },
+  { id: 'subestacion',      nombre: 'Subestación' },
+  { id: 'otros',            nombre: 'Otros' },
+];
 
 let codigo = '';
 let stream = null;
-let bloqueado = false;   // evita dobles marcas mientras se procesa una
+let bloqueado = false;
 let temporizador = null;
+let sectores = new Set();
+let enviando = false;
+
+/* ---------- Utilidades ---------- */
+function escHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t == null ? '' : String(t);
+  return d.innerHTML;
+}
+
+function mostrar(id) {
+  document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+}
+
+function reiniciar() {
+  clearTimeout(temporizador);
+  codigo = '';
+  bloqueado = false;
+  enviando = false;
+  pintarPuntos();
+  mostrar('p-codigo');
+}
 
 /* ---------- Reloj ---------- */
 function actualizarReloj() {
@@ -194,12 +425,6 @@ actualizarReloj();
 setInterval(actualizarReloj, 1000);
 
 /* ---------- Quien esta dentro ---------- */
-function escHtml(t) {
-  const d = document.createElement('div');
-  d.textContent = t == null ? '' : String(t);
-  return d.innerHTML;
-}
-
 async function refrescarDentro() {
   const caja = document.getElementById('dentro');
   let datos;
@@ -226,23 +451,8 @@ async function refrescarDentro() {
              '<span class="dentro-desde">desde ' + escHtml(p.desde) + '</span></span>';
     }).join('');
 }
-
 refrescarDentro();
 setInterval(refrescarDentro, MS_REFRESCO_DENTRO);
-
-/* ---------- Navegacion entre pantallas ---------- */
-function mostrar(id) {
-  document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
-  document.getElementById(id).classList.add('activa');
-}
-
-function reiniciar() {
-  clearTimeout(temporizador);
-  codigo = '';
-  bloqueado = false;
-  pintarPuntos();
-  mostrar('p-codigo');
-}
 
 /* ---------- Teclado ---------- */
 function pintarPuntos() {
@@ -252,27 +462,23 @@ function pintarPuntos() {
 
 function pulsar(valor) {
   if (bloqueado) return;
-  if (valor === 'borrar') {
-    codigo = codigo.slice(0, -1);
-  } else if (codigo.length < 4) {
-    codigo += valor;
-  }
+  if (valor === 'borrar') codigo = codigo.slice(0, -1);
+  else if (codigo.length < 4) codigo += valor;
   pintarPuntos();
   if (codigo.length === 4) {
     bloqueado = true;
-    setTimeout(capturarYEnviar, 180);   // deja ver el 4o punto encenderse
+    setTimeout(capturarYEnviar, 180);
   }
 }
 
 (function armarTeclado() {
   const teclas = ['1','2','3','4','5','6','7','8','9','vacia','0','borrar'];
-  const html = teclas.map(function (t) {
+  const teclado = document.getElementById('teclado');
+  teclado.innerHTML = teclas.map(function (t) {
     if (t === 'vacia')  return '<div class="tecla vacia"></div>';
     if (t === 'borrar') return '<button class="tecla aux" data-v="borrar">BORRAR</button>';
     return '<button class="tecla" data-v="' + t + '">' + t + '</button>';
   }).join('');
-  const teclado = document.getElementById('teclado');
-  teclado.innerHTML = html;
   teclado.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-v]');
     if (btn) pulsar(btn.dataset.v);
@@ -280,7 +486,6 @@ function pulsar(valor) {
   pintarPuntos();
 })();
 
-// La PC de la planta puede tener teclado fisico o numerico
 document.addEventListener('keydown', function (e) {
   if (!document.getElementById('p-codigo').classList.contains('activa')) return;
   if (/^[0-9]$/.test(e.key)) pulsar(e.key);
@@ -297,13 +502,10 @@ async function arrancarCamara() {
     document.getElementById('video').srcObject = stream;
     return true;
   } catch (e) {
-    // Sin camara o permiso denegado: la marca se registra igual, sin foto.
     stream = null;
     return false;
   }
 }
-
-// Pedir permiso apenas carga la pagina, para que no haya demora al marcar
 arrancarCamara();
 
 function tomarFoto() {
@@ -334,7 +536,7 @@ function cuentaRegresiva(segundos) {
   });
 }
 
-/* ---------- Marcar ---------- */
+/* ---------- Marcar asistencia ---------- */
 async function capturarYEnviar() {
   const hayCamara = await arrancarCamara();
   let foto = null;
@@ -375,9 +577,6 @@ function mostrarResultado(d) {
   acc.className = 'res-accion ' + d.accion;
   document.getElementById('res-hora').textContent = d.hora;
 
-  // `repetida` = el servidor detectó un doble toque y devolvió la marca que ya
-  // existía, sin crear una nueva. Hay que decirlo, o el trabajador cree que
-  // marcó dos veces.
   let nota;
   if (d.repetida) {
     nota = 'YA HABÍAS MARCADO — NO SE REGISTRÓ DE NUEVO';
@@ -387,7 +586,7 @@ function mostrarResultado(d) {
   document.getElementById('res-nota').textContent = nota;
 
   mostrar('p-resultado');
-  refrescarDentro();   // el indicador debe reflejar esta marca de inmediato
+  refrescarDentro();
   temporizador = setTimeout(reiniciar, MS_MOSTRAR_RESULTADO);
 }
 
@@ -398,10 +597,318 @@ function mostrarError(msg, sub) {
   temporizador = setTimeout(reiniciar, MS_MOSTRAR_ERROR);
 }
 
-// Tocar la pantalla de resultado o de error vuelve al inicio sin esperar
-['p-resultado', 'p-error'].forEach(function (id) {
+function mostrarOk(msg, sub) {
+  document.getElementById('ok-msg').textContent = msg;
+  document.getElementById('ok-sub').textContent = sub || '';
+  mostrar('p-ok');
+  temporizador = setTimeout(reiniciar, MS_MOSTRAR_RESULTADO);
+}
+
+['p-resultado', 'p-error', 'p-ok'].forEach(function (id) {
   document.getElementById(id).addEventListener('click', reiniciar);
 });
+
+/* ================= SOLICITUD DE INSUMOS ================= */
+function filaItem() {
+  const d = document.createElement('div');
+  d.className = 'item';
+  d.innerHTML =
+    '<input type="text" placeholder="Insumo" class="it-desc" autocomplete="off"/>' +
+    '<input type="text" placeholder="Cantidad" class="it-cant" autocomplete="off"/>' +
+    '<button class="btn-quitar" title="Quitar">×</button>';
+  d.querySelector('.btn-quitar').addEventListener('click', function () {
+    const cont = document.getElementById('items');
+    // Siempre queda al menos una fila: una lista sin ninguna no tiene sentido
+    if (cont.children.length > 1) d.remove();
+    else d.querySelectorAll('input').forEach(i => { i.value = ''; });
+  });
+  return d;
+}
+
+function sumarItem() {
+  const fila = filaItem();
+  document.getElementById('items').appendChild(fila);
+  fila.querySelector('.it-desc').focus();
+}
+
+function abrirInsumos() {
+  const cont = document.getElementById('items');
+  cont.innerHTML = '';
+  cont.appendChild(filaItem());
+  document.getElementById('insumos-notas').value = '';
+  mostrar('p-insumos');
+}
+
+async function enviarInsumos() {
+  if (enviando) return;
+
+  const items = [...document.querySelectorAll('#items .item')]
+    .map(f => ({
+      descripcion: f.querySelector('.it-desc').value.trim(),
+      cantidad: f.querySelector('.it-cant').value.trim(),
+    }))
+    .filter(it => it.descripcion !== '');
+
+  if (!items.length) {
+    mostrarError('Falta el insumo', 'Escribí al menos un insumo antes de solicitar.');
+    return;
+  }
+
+  enviando = true;
+  mostrar('p-enviando');
+
+  const r = await enviarRegistro({
+    tipo: 'insumos',
+    items: items,
+    notas: document.getElementById('insumos-notas').value.trim(),
+  });
+
+  if (r.ok) {
+    mostrarOk('Solicitud enviada',
+      items.length + (items.length === 1 ? ' insumo solicitado' : ' insumos solicitados'));
+  }
+}
+
+/* ================= REGISTRO DE ACTIVIDAD ================= */
+(function armarMapa() {
+  const mapa = document.getElementById('mapa');
+
+  CUADRANTES.forEach(function (q) {
+    const caja = document.createElement('div');
+    const lbl = document.createElement('div');
+    lbl.className = 'cuadrante-lbl';
+    lbl.textContent = q.nombre;
+    caja.appendChild(lbl);
+
+    const rejilla = document.createElement('div');
+    rejilla.className = 'rejilla';
+    rejilla.style.gridTemplateColumns = 'auto repeat(' + q.columnas + ', auto)';
+
+    // Fila de encabezado: numeros de columna, que seleccionan la columna entera
+    rejilla.appendChild(Object.assign(document.createElement('div'), { className: 'esquina' }));
+    for (let c = 1; c <= q.columnas; c++) {
+      const b = document.createElement('button');
+      b.className = 'cab-col';
+      b.textContent = c;
+      b.title = 'Columna ' + c + ' completa';
+      b.addEventListener('click', () => alternarGrupo(q, null, c));
+      rejilla.appendChild(b);
+    }
+
+    for (let f = 0; f < q.filas; f++) {
+      const letra = String.fromCharCode(65 + f);
+
+      const b = document.createElement('button');
+      b.className = 'cab-fila';
+      b.textContent = letra;
+      b.title = 'Fila ' + letra + ' completa';
+      b.addEventListener('click', () => alternarGrupo(q, letra, null));
+      rejilla.appendChild(b);
+
+      for (let c = 1; c <= q.columnas; c++) {
+        const id = q.id + '-' + letra + c;
+        const celda = document.createElement('button');
+        celda.className = 'celda';
+        celda.dataset.id = id;
+        celda.title = id;
+        celda.addEventListener('click', () => alternarSector(id));
+        rejilla.appendChild(celda);
+      }
+    }
+
+    caja.appendChild(rejilla);
+    mapa.appendChild(caja);
+  });
+})();
+
+function alternarSector(id) {
+  if (sectores.has(id)) sectores.delete(id);
+  else sectores.add(id);
+  refrescarMapa();
+}
+
+/** Selecciona o deselecciona una fila o una columna entera de un cuadrante. */
+function alternarGrupo(q, letra, columna) {
+  const ids = [];
+  for (let f = 0; f < q.filas; f++) {
+    const l = String.fromCharCode(65 + f);
+    if (letra && l !== letra) continue;
+    for (let c = 1; c <= q.columnas; c++) {
+      if (columna && c !== columna) continue;
+      ids.push(q.id + '-' + l + c);
+    }
+  }
+  // Si ya estaban todos seleccionados, el toque los quita
+  const todos = ids.every(id => sectores.has(id));
+  ids.forEach(id => todos ? sectores.delete(id) : sectores.add(id));
+  refrescarMapa();
+}
+
+function limpiarSectores() {
+  sectores.clear();
+  refrescarMapa();
+}
+
+/**
+ * Sectores y actividades especiales son excluyentes: si hay sectores marcados,
+ * el reporte es de paneles; si no hay ninguno, se habilitan las especiales.
+ * La UI lo refleja apagando el bloque que no corresponde, para que nadie llene
+ * los dos y despues reciba un error.
+ */
+function refrescarMapa() {
+  document.querySelectorAll('.celda').forEach(function (c) {
+    c.classList.toggle('sel', sectores.has(c.dataset.id));
+  });
+  document.getElementById('cuenta-sectores').textContent = sectores.size;
+
+  const hayEspeciales = categoriasMarcadas().length > 0;
+
+  document.getElementById('bloque-especiales')
+    .classList.toggle('inhabilitado', sectores.size > 0);
+  document.getElementById('bloque-actividad')
+    .classList.toggle('inhabilitado', sectores.size === 0);
+
+  document.getElementById('notas-obligatorias').style.display =
+    hayEspeciales ? 'inline' : 'none';
+}
+
+(function armarEspeciales() {
+  const cont = document.getElementById('especiales');
+  ESPECIALES.forEach(function (e) {
+    const lbl = document.createElement('label');
+    lbl.className = 'especial';
+    lbl.innerHTML = '<input type="checkbox" value="' + e.id + '"/><span>' + e.nombre + '</span>';
+    lbl.querySelector('input').addEventListener('change', function () {
+      lbl.classList.toggle('marcada', this.checked);
+      refrescarMapa();
+    });
+    cont.appendChild(lbl);
+  });
+})();
+
+function categoriasMarcadas() {
+  return [...document.querySelectorAll('#especiales input:checked')].map(i => i.value);
+}
+
+function abrirActividad() {
+  sectores.clear();
+  document.getElementById('actividad').value = '';
+  document.getElementById('actividad-notas').value = '';
+  document.querySelectorAll('#especiales input').forEach(function (i) {
+    i.checked = false;
+    i.closest('.especial').classList.remove('marcada');
+  });
+  refrescarMapa();
+  mostrar('p-actividad');
+}
+
+async function enviarActividad() {
+  if (enviando) return;
+
+  const listaSectores = [...sectores];
+  const categorias = categoriasMarcadas();
+  const notas = document.getElementById('actividad-notas').value.trim();
+  const actividad = document.getElementById('actividad').value;
+
+  if (!listaSectores.length && !categorias.length) {
+    mostrarError('Falta seleccionar',
+      'Marcá los sectores en el mapa, o elegí una de las otras actividades.');
+    return;
+  }
+  if (listaSectores.length && !actividad) {
+    mostrarError('Falta la actividad',
+      'Elegí si fue fumigación, poda o lavado.');
+    return;
+  }
+  if (!listaSectores.length && !notas) {
+    mostrarError('Faltan las notas',
+      'En inversores, rondas antifuego, subestación y otros, las notas son obligatorias.');
+    return;
+  }
+
+  enviando = true;
+  mostrar('p-enviando');
+
+  const r = await enviarRegistro({
+    tipo: 'actividad',
+    sectores: listaSectores,
+    actividad: actividad,
+    categorias: categorias,
+    notas: notas,
+  });
+
+  if (r.ok) {
+    if (r.datos.bandera) {
+      mostrarOk('Reporte ingresado', 'Queda señalado para revisión del administrador.');
+    } else {
+      mostrarOk('Reporte ingresado', r.datos.sectores + ' sectores · ' + actividad);
+    }
+  }
+}
+
+/* ================= VISITAS ================= */
+function abrirVisitas() {
+  ['visita-nombre', 'visita-identificacion', 'visita-empresa', 'visita-motivo'].forEach(function (id) {
+    document.getElementById(id).value = '';
+  });
+  mostrar('p-visitas');
+}
+
+async function enviarVisita() {
+  if (enviando) return;
+
+  const nombre = document.getElementById('visita-nombre').value.trim();
+  if (!nombre) {
+    mostrarError('Falta el nombre', 'El nombre del visitante es obligatorio.');
+    return;
+  }
+
+  const identificacion = document.getElementById('visita-identificacion').value.trim();
+  if (!identificacion) {
+    mostrarError('Falta la identificación',
+      'Anotá el número de DPI, pasaporte o licencia del visitante.');
+    return;
+  }
+
+  enviando = true;
+  mostrar('p-enviando');
+
+  const r = await enviarRegistro({
+    tipo: 'visita',
+    nombre: nombre,
+    identificacion: identificacion,
+    empresa: document.getElementById('visita-empresa').value.trim(),
+    motivo: document.getElementById('visita-motivo').value.trim(),
+  });
+
+  if (r.ok) mostrarOk('Visita registrada', nombre);
+}
+
+/* ---------- Envio comun ---------- */
+async function enviarRegistro(cuerpo) {
+  let datos;
+  try {
+    const resp = await fetch(REGISTRAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo),
+    });
+    datos = await resp.json();
+  } catch (e) {
+    enviando = false;
+    mostrarError('Sin conexión', 'No se pudo contactar al servidor. Intentá de nuevo en un momento.');
+    return { ok: false };
+  }
+
+  enviando = false;
+
+  if (!datos.ok) {
+    mostrarError(datos.error || 'No se pudo guardar', 'Revisá los datos e intentá de nuevo.');
+    return { ok: false };
+  }
+
+  return { ok: true, datos: datos };
+}
 </script>
 </body>
 </html>

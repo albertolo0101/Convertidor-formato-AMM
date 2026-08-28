@@ -155,16 +155,166 @@ insert into public.admins (email) values
 on conflict (email) do nothing;
 
 
+
+
+-- ============================================================================
+-- MODULOS ADICIONALES — insumos, registro de actividad y visitas
+--
+-- Se agregan aparte del bloque de asistencia. Todo sigue la misma regla: 'anon'
+-- no toca ninguna tabla; el kiosko escribe a traves de Edge Functions.
+--
+-- Las tres tablas llevan 'trabajador_id' NULLABLE. Hoy el kiosko guarda estos
+-- registros de forma anonima (decision del usuario: un toque menos por
+-- operacion). La columna existe para que agregar autoria mas adelante sea un
+-- cambio de interfaz y no una migracion sobre datos en vivo.
+-- ============================================================================
+
+
 -- ----------------------------------------------------------------------------
--- 6. Verificacion — deberia devolver: 2 trabajadores, 2 admins, bucket privado
+-- Solicitudes de insumos
 -- ----------------------------------------------------------------------------
 
+create table if not exists public.solicitudes_insumos (
+  id            uuid primary key default gen_random_uuid(),
+  creado_en     timestamptz not null default now(),
+  trabajador_id uuid references public.trabajadores(id) on delete set null,
+  -- [{ "descripcion": "guantes", "cantidad": "2 pares" }, ...]
+  items         jsonb not null,
+  notas         text,
+  estado        text not null default 'pendiente'
+                  check (estado in ('pendiente','atendida')),
+  atendida_en   timestamptz,
+  atendida_por  text,
+  constraint items_no_vacio check (jsonb_array_length(items) > 0)
+);
+
+create index if not exists solicitudes_insumos_creado_idx
+  on public.solicitudes_insumos (creado_en desc);
+create index if not exists solicitudes_insumos_estado_idx
+  on public.solicitudes_insumos (estado, creado_en desc);
+
+
+-- ----------------------------------------------------------------------------
+-- Registro de actividad
+--
+-- Dos formas excluyentes:
+--   tipo='sectores' -> trabajo sobre paneles: actividad + sectores del mapa
+--   tipo='especial' -> inversores / rondas antifuego / subestacion / otros
+--
+-- Las especiales EXIGEN notas y levantan una bandera que solo el administrador
+-- puede bajar. Las restricciones lo garantizan en la base, no solo en la UI:
+-- si algun dia otro cliente escribe aca, no puede colar un registro incompleto.
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.registros_actividad (
+  id            uuid primary key default gen_random_uuid(),
+  creado_en     timestamptz not null default now(),
+  trabajador_id uuid references public.trabajadores(id) on delete set null,
+
+  tipo          text not null check (tipo in ('sectores','especial')),
+
+  actividad     text check (actividad in ('fumigacion','poda','lavado')),
+  sectores      text[],
+
+  categorias    text[],
+
+  notas         text,
+
+  requiere_revision boolean not null default false,
+  revisado_en   timestamptz,
+  revisado_por  text,
+
+  constraint sectores_completos check (
+    tipo <> 'sectores'
+    or (actividad is not null and coalesce(array_length(sectores, 1), 0) >= 1)
+  ),
+
+  -- Notas obligatorias en las especiales: son las que hay que revisar, y una
+  -- bandera sin explicacion no sirve de nada.
+  constraint especial_completo check (
+    tipo <> 'especial'
+    or (coalesce(array_length(categorias, 1), 0) >= 1
+        and notas is not null and btrim(notas) <> '')
+  ),
+
+  constraint categorias_validas check (
+    categorias is null
+    or categorias <@ array['inversores','rondas_antifuego','subestacion','otros']
+  )
+);
+
+create index if not exists registros_actividad_creado_idx
+  on public.registros_actividad (creado_en desc);
+-- Indice parcial: el panel consulta sobre todo las banderas sin revisar
+create index if not exists registros_actividad_revision_idx
+  on public.registros_actividad (creado_en desc) where requiere_revision;
+
+
+-- ----------------------------------------------------------------------------
+-- Visitas — solo registro de llegada, sin marcar salida
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.visitas (
+  id             uuid primary key default gen_random_uuid(),
+  creado_en      timestamptz not null default now(),
+  nombre         text not null check (btrim(nombre) <> ''),
+  -- Documento de identidad. Nullable en la tabla para no romper instalaciones
+  -- previas; la obligatoriedad la impone la Edge Function, que es la unica via
+  -- de escritura.
+  identificacion text,
+  empresa        text,
+  motivo         text
+);
+
+-- Para instalaciones que ya existian antes de que se pidiera el documento
+alter table public.visitas add column if not exists identificacion text;
+
+create index if not exists visitas_creado_idx
+  on public.visitas (creado_en desc);
+
+
+-- ----------------------------------------------------------------------------
+-- RLS de los modulos nuevos — mismas reglas que asistencia
+-- ----------------------------------------------------------------------------
+
+alter table public.solicitudes_insumos  enable row level security;
+alter table public.registros_actividad  enable row level security;
+alter table public.visitas              enable row level security;
+
+drop policy if exists "admins gestionan insumos"    on public.solicitudes_insumos;
+drop policy if exists "admins gestionan actividad"  on public.registros_actividad;
+drop policy if exists "admins gestionan visitas"    on public.visitas;
+
+create policy "admins gestionan insumos" on public.solicitudes_insumos
+  for all to authenticated using (private.es_admin()) with check (private.es_admin());
+
+create policy "admins gestionan actividad" on public.registros_actividad
+  for all to authenticated using (private.es_admin()) with check (private.es_admin());
+
+create policy "admins gestionan visitas" on public.visitas
+  for all to authenticated using (private.es_admin()) with check (private.es_admin());
+
+revoke all on public.solicitudes_insumos from anon;
+revoke all on public.registros_actividad from anon;
+revoke all on public.visitas             from anon;
+
+
+-- ============================================================================
+-- VERIFICACION FINAL
+--
+-- Sobre una instalacion limpia deberia devolver:
+--   trabajadores 2 · admins 2 · bucket_publico false · politicas_rls 7
+--   tablas_creadas 7
+-- ============================================================================
+
 select
-  (select count(*) from public.trabajadores)                        as trabajadores,
-  (select count(*) from public.admins)                              as admins,
-  (select count(*) from public.asistencia)                          as marcas,
-  (select public from storage.buckets where id = 'fotos')           as bucket_publico,
-  (select count(*) from pg_policies
-     where schemaname = 'public'
-       and tablename in ('trabajadores','asistencia','admins','intentos_fallidos'))
-                                                                    as politicas_rls;
+  (select count(*) from public.trabajadores)                   as trabajadores,
+  (select count(*) from public.admins)                         as admins,
+  (select count(*) from public.asistencia)                     as marcas,
+  (select public from storage.buckets where id = 'fotos')      as bucket_publico,
+  (select count(*) from pg_policies where schemaname = 'public') as politicas_rls,
+  (select count(*) from information_schema.tables
+     where table_schema = 'public'
+       and table_name in ('trabajadores','asistencia','admins','intentos_fallidos',
+                          'solicitudes_insumos','registros_actividad','visitas'))
+                                                               as tablas_creadas;
