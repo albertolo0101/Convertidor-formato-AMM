@@ -7,7 +7,9 @@
 // Por eso esta funcion se despliega con verify_jwt = false y implementa su
 // propia autenticacion y su propio limite de intentos.
 //
-// POST { codigo: "1234", foto_base64: "data:image/jpeg;base64,..." | null }
+// POST { codigo, foto_base64?, marcado_en? }
+//   marcado_en: ISO opcional. Lo manda la cola offline del kiosko con el
+//   momento REAL de la marca; sin el, se usa la hora del servidor.
 //  -> 200 { ok: true, nombre, accion, hora, con_foto, repetida }
 //  -> 400 { ok: false, error }   codigo mal formado
 //  -> 401 { ok: false, error }   codigo invalido (mensaje generico a proposito)
@@ -25,6 +27,10 @@ const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 // que toca la pantalla dos veces registra su ENTRADA y, segundos despues, una
 // SALIDA — y la jornada queda corrupta sin que nadie se de cuenta.
 const GRACIA_SEG = 90;
+
+// Tope de antiguedad para una marca diferida por la cola offline. Mas alla de
+// esto se rechaza: el endpoint es publico y no puede aceptar historia arbitraria.
+const MAX_ATRASO_DIAS = 7;
 
 // El CORS NO protege este endpoint: solo impide que un navegador en otro
 // dominio lea la respuesta. Con curl se saltea por completo. Las defensas
@@ -126,7 +132,7 @@ Deno.serve(async (req: Request) => {
 
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "desconocida";
 
-  let body: { codigo?: string; foto_base64?: string | null };
+  let body: { codigo?: string; foto_base64?: string | null; marcado_en?: string };
   try {
     body = await req.json();
   } catch {
@@ -166,12 +172,40 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: "Codigo no reconocido" }, 401);
   }
 
+  // El kiosko guarda las marcas en una cola cuando no hay internet y las manda
+  // despues. En ese caso viaja el momento REAL de la marca, no el del envio:
+  // registrar la hora del envio falsearia la jornada.
   const ahora = new Date();
+  let momento = ahora;
+  let diferida = false;
 
+  if (typeof body.marcado_en === "string") {
+    const propuesto = new Date(body.marcado_en);
+    if (isNaN(propuesto.getTime())) {
+      return json({ ok: false, error: "Fecha de marca invalida" }, 400);
+    }
+    // Margen hacia adelante por desfase de reloj del kiosko; hacia atras, un
+    // tope para que nadie inyecte marcas antiguas por este endpoint publico.
+    const adelanto = (propuesto.getTime() - ahora.getTime()) / 1000;
+    const atraso = (ahora.getTime() - propuesto.getTime()) / 1000;
+    if (adelanto > 300) {
+      return json({ ok: false, error: "La marca viene con fecha futura" }, 400);
+    }
+    if (atraso > MAX_ATRASO_DIAS * 86400) {
+      return json({ ok: false, error: "La marca es demasiado antigua" }, 400);
+    }
+    momento = propuesto;
+    diferida = atraso > 120;
+  }
+
+  // Se compara contra la ultima marca ANTERIOR a este momento, no contra la
+  // ultima en general: asi una marca diferida se resuelve bien aunque llegue
+  // despues de otras mas nuevas.
   const { data: ultima } = await db
     .from("asistencia")
     .select("accion, marcado_en, foto_path")
     .eq("trabajador_id", trabajador.id)
+    .lt("marcado_en", momento.toISOString())
     .order("marcado_en", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -179,7 +213,7 @@ Deno.serve(async (req: Request) => {
   // Doble marca accidental: dentro del periodo de gracia no se crea un registro
   // nuevo, se devuelve el que ya existe para que el kiosko lo muestre otra vez.
   if (ultima) {
-    const segundos = (ahora.getTime() - new Date(ultima.marcado_en).getTime()) / 1000;
+    const segundos = (momento.getTime() - new Date(ultima.marcado_en).getTime()) / 1000;
     if (segundos < GRACIA_SEG) {
       await db.from("intentos_fallidos").delete().eq("ip", ip);
       return json({
@@ -189,6 +223,7 @@ Deno.serve(async (req: Request) => {
         hora: horaGT(new Date(ultima.marcado_en)),
         con_foto: ultima.foto_path !== null,
         repetida: true,
+        diferida,
       });
     }
   }
@@ -196,7 +231,7 @@ Deno.serve(async (req: Request) => {
   // Entrada o salida se deduce de la ultima marca. Si la ultima fue 'entrada'
   // pero de un dia anterior (se olvidaron de marcar salida), hoy vuelve a
   // contar como 'entrada' en vez de encadenar una salida sin sentido.
-  const ultimaFueHoy = ultima ? fechaGT(new Date(ultima.marcado_en)) === fechaGT(ahora) : false;
+  const ultimaFueHoy = ultima ? fechaGT(new Date(ultima.marcado_en)) === fechaGT(momento) : false;
   const accion = ultima?.accion === "entrada" && ultimaFueHoy ? "salida" : "entrada";
 
   const registroId = crypto.randomUUID();
@@ -205,7 +240,7 @@ Deno.serve(async (req: Request) => {
   if (body.foto_base64) {
     const bytes = decodificarFoto(body.foto_base64);
     if (bytes) {
-      const ruta = `${fechaGT(ahora)}/${registroId}.jpg`;
+      const ruta = `${fechaGT(momento)}/${registroId}.jpg`;
       const { error } = await db.storage
         .from("fotos")
         .upload(ruta, bytes, { contentType: "image/jpeg", upsert: false });
@@ -219,7 +254,7 @@ Deno.serve(async (req: Request) => {
     id: registroId,
     trabajador_id: trabajador.id,
     accion,
-    marcado_en: ahora.toISOString(),
+    marcado_en: momento.toISOString(),
     foto_path: fotoPath,
   });
 
@@ -244,8 +279,9 @@ Deno.serve(async (req: Request) => {
     ok: true,
     nombre: trabajador.nombre,
     accion,
-    hora: horaGT(ahora),
+    hora: horaGT(momento),
     con_foto: fotoPath !== null,
     repetida: false,
+    diferida,
   });
 });

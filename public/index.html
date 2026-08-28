@@ -49,6 +49,10 @@ body::before{content:'';position:fixed;inset:0;
 .dentro-desde{color:var(--dim);font-size:11px;}
 .dentro-nadie{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em;}
 
+.cola{display:flex;align-items:center;gap:10px;padding:8px 14px;margin-bottom:6px;
+  flex-shrink:0;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.4);
+  font-family:var(--mono);font-size:11px;color:var(--yellow);letter-spacing:.04em;}
+
 /* ---------- Pantallas ---------- */
 .pantalla{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;min-height:0;}
 .pantalla.activa{display:flex;}
@@ -211,6 +215,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   </div>
 
   <div class="dentro" id="dentro"></div>
+  <div class="cola" id="cola" style="display:none;"></div>
 
   <!-- ============ Pantalla principal: codigo + modulos ============ -->
   <div class="pantalla activa" id="p-codigo">
@@ -536,8 +541,97 @@ function cuentaRegresiva(segundos) {
   });
 }
 
+/* ================= COLA OFFLINE =================
+ * La planta puede quedarse sin internet. Antes, eso significaba no poder
+ * marcar; ahora la marca se guarda en el navegador y se reintenta sola.
+ *
+ * Se envia el momento REAL de la marca, no el del reenvio: registrar la hora
+ * del envio falsearia la jornada. El servidor lo valida y resuelve
+ * entrada/salida contra el estado que habia en ese momento.
+ */
+const COLA_CLAVE = 'gravitas_cola';
+const MS_REINTENTO = 45000;
+
+function leerCola() {
+  try { return JSON.parse(localStorage.getItem(COLA_CLAVE) || '[]'); }
+  catch (e) { return []; }
+}
+
+function guardarCola(cola) {
+  try {
+    localStorage.setItem(COLA_CLAVE, JSON.stringify(cola));
+  } catch (e) {
+    // Cuota llena: las fotos ocupan mucho. Se descartan las fotos de lo
+    // encolado antes que perder las marcas — la hora es el dato de nomina.
+    try {
+      localStorage.setItem(COLA_CLAVE, JSON.stringify(
+        cola.map(p => Object.assign({}, p, { cuerpo: sinFoto(p.cuerpo) }))));
+    } catch (e2) { /* si ni asi entra, no hay nada mas que hacer */ }
+  }
+  pintarCola();
+}
+
+function sinFoto(cuerpo) {
+  const copia = Object.assign({}, cuerpo);
+  delete copia.foto_base64;
+  return copia;
+}
+
+function encolar(url, cuerpo) {
+  const cola = leerCola();
+  cola.push({ url: url, cuerpo: cuerpo, intentos: 0 });
+  guardarCola(cola);
+}
+
+function pintarCola() {
+  const caja = document.getElementById('cola');
+  const n = leerCola().length;
+  if (!n) { caja.style.display = 'none'; return; }
+  caja.style.display = 'flex';
+  caja.textContent = n === 1
+    ? '1 registro guardado sin conexión · se enviará solo'
+    : n + ' registros guardados sin conexión · se enviarán solos';
+}
+
+async function vaciarCola() {
+  const cola = leerCola();
+  if (!cola.length) return;
+
+  const quedan = [];
+  for (const p of cola) {
+    try {
+      const resp = await fetch(p.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(p.cuerpo),
+      });
+      const datos = await resp.json();
+      // Un rechazo del servidor (400/401) no mejora reintentando: se descarta.
+      // Solo se conserva lo que fallo por red o por error del servidor.
+      if (!datos.ok && resp.status >= 500) {
+        p.intentos++;
+        if (p.intentos < 20) quedan.push(p);
+      }
+    } catch (e) {
+      p.intentos++;
+      if (p.intentos < 20) quedan.push(p);
+    }
+  }
+
+  guardarCola(quedan);
+  if (quedan.length < cola.length) refrescarDentro();
+}
+
+pintarCola();
+vaciarCola();
+setInterval(vaciarCola, MS_REINTENTO);
+window.addEventListener('online', vaciarCola);
+
 /* ---------- Marcar asistencia ---------- */
 async function capturarYEnviar() {
+  // Se toma antes de la cuenta regresiva: es la hora en que el trabajador
+  // ingreso su codigo, no la del envio.
+  const momento = new Date().toISOString();
   const hayCamara = await arrancarCamara();
   let foto = null;
 
@@ -554,11 +648,14 @@ async function capturarYEnviar() {
     const resp = await fetch(FUNCION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codigo: codigo, foto_base64: foto }),
+      body: JSON.stringify({ codigo: codigo, foto_base64: foto, marcado_en: momento }),
     });
     datos = await resp.json();
   } catch (e) {
-    mostrarError('Sin conexión', 'No se pudo contactar al servidor. Intentá de nuevo en un momento.');
+    // Sin conexión la marca NO se pierde: queda en cola con su hora real.
+    encolar(FUNCION_URL, { codigo: codigo, foto_base64: foto, marcado_en: momento });
+    mostrarOk('Marca guardada',
+      'No hay internet. Se registró la hora y se enviará sola cuando vuelva la conexión.');
     return;
   }
 
@@ -895,8 +992,11 @@ async function enviarRegistro(cuerpo) {
     });
     datos = await resp.json();
   } catch (e) {
+    // Igual que la asistencia: no se pierde un reporte por falta de internet.
+    encolar(REGISTRAR_URL, cuerpo);
     enviando = false;
-    mostrarError('Sin conexión', 'No se pudo contactar al servidor. Intentá de nuevo en un momento.');
+    mostrarOk('Guardado sin conexión',
+      'Se enviará solo cuando vuelva el internet.');
     return { ok: false };
   }
 

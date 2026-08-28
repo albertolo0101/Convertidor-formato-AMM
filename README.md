@@ -1,141 +1,212 @@
-# ⚡ Gravitas Command Center
+# Gravitas · Mantenimiento
 
-Command center local para **Gravitas — Planta Solar 5 MW**, Guatemala. Corre como
-un servidor Python en la PC de la planta (`http://localhost:8787`) — nada de
-internet en el día a día; solo hace falta conexión al sincronizar con Drive.
+Herramienta interna del **departamento de mantenimiento** de Gravitas, Planta
+Solar 5 MW, Guatemala.
 
-## Módulos
-
-| Módulo | Archivo | Descripción |
-|--------|---------|-------------|
-| Panel Principal | `web/launcher.html` | Lanzador del suite + estado de empleados + sync a Drive |
-| Asistencia | `web/asistencia.html` | Marcar entrada/salida tocando el nombre; saca una foto de verificación |
-| Mantenimiento | `web/mantenimiento.html` | Mapa de la planta para registrar zonas trabajadas por actividad |
-| AMM: Medición → Ingresos | `web/index.html` | Convierte medición Gravitas a formato AMM + calcula ingresos POE |
-
-Los datos de asistencia y mantenimiento se guardan localmente en `datos/*.csv`.
-Cada tanto, desde el Panel Principal, se sincronizan a dos Google Sheets separados
-en Drive (uno de asistencia, uno de mantenimiento). La sincronización es
-idempotente: volver a sincronizar nunca duplica filas.
-
-## Setup inicial
-
-### 1. Python
-
-Necesitás Python 3.10+ instalado en la PC de la planta.
-
-### 2. Google Cloud (para la sincronización con Drive)
-
-1. Andá a https://console.cloud.google.com, creá un proyecto y habilitá la
-   **Google Sheets API**.
-2. Credenciales → **Crear credenciales → ID de cliente de OAuth** → Tipo de
-   aplicación: **Aplicación de escritorio (Desktop app)**.
-3. Descargá el JSON de esas credenciales y guardalo como `credentials.json` en
-   la raíz de esta carpeta (el nombre del archivo debe ser exactamente ese).
-4. Creá dos Google Sheets en Drive: uno para Asistencia y otro para
-   Mantenimiento. Compartí ambos con tu correo de trabajo como **Editor**.
-5. Copiá el `spreadsheet_id` de cada uno (el texto entre `/d/` y `/edit` en la
-   URL) y pegalo en `config.json` (ver paso siguiente).
-
-### 3. Configurar el proyecto
-
-1. Copiá `config.example.json` como `config.json`.
-2. Editá `config.json`:
-   - `empleados`: lista de los 2 empleados (`id` y `nombre`).
-   - `sheets.asistencia.spreadsheet_id` y `sheets.mantenimiento.spreadsheet_id`:
-     los IDs del paso anterior.
-   - `puerto` y `retencion_fotos_dias` normalmente no hace falta tocarlos.
-3. Corré `setup.bat` (Windows) o `./setup.sh` (mac/Linux) **una sola vez**. Esto
-   crea un entorno virtual (`.venv`) e instala las dependencias.
-
-`config.json`, `credentials.json`, `token.json` y la carpeta `datos/` nunca se
-suben al repositorio (están en `.gitignore`) porque contienen datos privados o
-credenciales.
-
-## Uso diario
-
-Corré `iniciar.bat` (Windows) o `./iniciar.sh` (mac/Linux). Esto levanta el
-servidor y abre el navegador en `http://localhost:8787`.
-
-### Acceso directo de escritorio (Windows)
-
-Creá un acceso directo con este destino (ajustando la ruta a esta carpeta):
+Corre en la nube. Los trabajadores la usan desde la computadora de la planta sin
+iniciar sesión; el administrador entra con Google desde cualquier lado.
 
 ```
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --app="http://localhost:8787"
+Kiosko   https://gravitas-mantenimiento.alberto-175.workers.dev
+Panel    https://gravitas-mantenimiento.alberto-175.workers.dev/admin
+AMM      https://gravitas-mantenimiento.alberto-175.workers.dev/amm
 ```
 
-### Sincronizar con Drive
+---
 
-Desde el Panel Principal, botón **"Sincronizar con Drive"**. La primera vez va a
-pedir que inicies sesión con tu correo de trabajo (se abre el navegador para el
-consentimiento de Google); después queda cacheada la sesión en `token.json` y
-no lo vuelve a pedir hasta que expire o la revoques.
+## Qué hace
 
-## Módulo Asistencia — nota de privacidad
+### Asistencia
 
-Al marcar entrada o salida, la webcam saca una foto para verificar quién
-marcó. **Las fotos se guardan solo en esta PC** (`datos/fotos/`), nunca se
-suben a Drive ni a ningún lado, y se **borran automáticamente a los 14 días**.
-Si no hay cámara disponible o se niega el permiso, la marca se registra igual
-sin foto. Informá esto a los empleados antes de usar el módulo.
+El trabajador ingresa su código de 4 dígitos, la cámara hace una cuenta
+regresiva de 3 y saca una foto. El sistema deduce si es entrada o salida según
+su última marca y lo muestra en grande.
 
-## Módulo Mantenimiento
+- **La foto es la verificación real.** El código identifica; la foto prueba.
+- Si no hay cámara o se niega el permiso, **la marca se registra igual** y lo
+  dice en pantalla. Nunca se le bloquea el turno a alguien por un problema
+  técnico.
+- Un doble toque accidental **no** genera una salida a los cinco segundos de la
+  entrada: dentro de 90 segundos se devuelve la marca que ya existía.
+- Si alguien olvida marcar salida, la primera marca del día siguiente vuelve a
+  contar como entrada.
+- Arriba se ve **quién está en planta**, con un punto verde.
 
-El mapa (`zonas.json`) tiene 4 cuadrantes de paneles (C1–C4), las calles/zonas
-de poda (divididas en 2 mitades por fila), los drenajes pluviales y las zonas
-verdes. Cada actividad habilita solo los tipos de zona que le corresponden:
+### Solicitud de insumos
 
-| Actividad | Zonas habilitadas |
-|-----------|--------------------|
-| Lavado de paneles | Paneles (azul) |
-| Poda | Calles/poda (blanco) + Drenajes (celeste) |
-| Fumigación | Calles/poda (blanco) + Drenajes (celeste) |
-| Mantenimiento general | Verde |
+Lista de insumos con cantidad y notas. El administrador las ve y las marca como
+atendidas.
 
-## Uso del módulo AMM
+### Registro de actividad
 
-### Paso 1 — Cargar medición mensual
-Arrastrá o seleccioná el archivo Excel exportado de Gravitas (`.xls` o `.xlsx`).
-Acepta hoja **"Gravitas pri"** (15 min) o **"Lectura convertida"** (horaria). El mes se detecta automáticamente.
+Mapa de la planta con **192 sectores** en cuatro bloques:
 
-### Paso 2 — Precios POE del mes
-- **A · ZIPs del portal AMM** — cargá los `PD{AÑO}{MES}{DIA}.zip` diarios
-- **B · CSV consolidado POE** — cargá el `POE_AMM_DDMMAAAA_DDMMAAAA.csv` de un proceso anterior
-- **C · Descargar ZIPs** — abre los enlaces del mes desde el portal AMM
+| Cuadrante | Posición | Columnas | Filas |
+|---|---|---|---|
+| C1 | superior izquierdo | 1–4 | A–R (18) |
+| C2 | inferior izquierdo | 1–4 | A–R (18) |
+| C3 | superior derecho | 1–2 | A–L (12) |
+| C4 | inferior derecho | 1–2 | A–L (12) |
 
-### Paso 3 — Ingresos calculados
-Revenue total, promedio diario, precio POE promedio, tabla diaria y gráficas.
+Se seleccionan los sectores trabajados y se elige **fumigación, poda o lavado**.
+Tocar una letra selecciona la fila entera; tocar un número, la columna.
 
-### Paso 4 — Descargar resultados
-| Archivo | Descripción |
-|---------|-------------|
-| **Formato Carga AMM** (`.xlsx`) | Canales 8549–8552, listo para subir al portal |
-| **CSV POE Consolidado** | Precios hora × día, reutilizable en Paso 2-B |
-| **Informe PDF** | Reporte mensual con KPIs, gráficas y tabla diaria |
+Si no se selecciona ningún sector, se habilitan las otras actividades
+—**inversores, rondas antifuego, subestación, otros**—, que exigen notas
+obligatorias y **levantan una bandera** que solo el administrador puede bajar.
 
-## Canales AMM
+### Visitas
 
-| Canal | Medición |
-|-------|----------|
-| 8549 | kWh generados |
-| 8550 | kWh consumidos |
-| 8551 | kVAR generados |
-| 8552 | kVAR consumidos |
+Registro de llegada: nombre e identificación obligatorios, empresa y motivo
+opcionales.
 
-## Estructura de la carpeta
+### Convertidor AMM
+
+Convierte la medición mensual de Gravitas al formato de carga del AMM y calcula
+ingresos POE. Funciona **enteramente en el navegador**: no envía nada a ningún
+servidor.
+
+---
+
+## Sin internet
+
+La planta puede quedarse sin conexión. Cuando pasa, **las marcas y los reportes
+no se pierden**: quedan guardados en el navegador y se envían solos cuando
+vuelve la señal. Un aviso amarillo indica cuántos hay pendientes.
+
+Se guarda el **momento real** de la marca, no el del reenvío, así que la jornada
+queda correcta aunque el envío ocurra horas después.
+
+---
+
+## Privacidad de las fotos
+
+- Se guardan en un depósito **privado**: nadie puede verlas sin ser
+  administrador autenticado, ni siquiera conociendo la dirección exacta.
+- **Se borran automáticamente a los 10 días.**
+- Los **registros** de asistencia se conservan indefinidamente: son el dato de
+  nómina y pesan kilobytes. Solo se purgan las imágenes.
+
+Informá esto a los trabajadores antes de usar el módulo.
+
+---
+
+## Cómo está armado
 
 ```
-├── iniciar.bat / iniciar.sh   # arranque diario: servidor + navegador
-├── setup.bat  / setup.sh      # una sola vez: venv + dependencias
-├── servidor.py                # servidor local (Flask)
-├── requirements.txt
-├── config.example.json        # plantilla (versionada)
-├── config.json                 # real, con datos propios (gitignored)
-├── zonas.json                  # mapa de la planta
-├── credentials.json             # OAuth Desktop client (gitignored)
-├── token.json                   # sesión cacheada (gitignored)
-├── datos/                       # asistencia.csv, mantenimiento.csv, fotos/ (gitignored)
-├── web/                         # launcher, asistencia, mantenimiento, AMM
-└── logo.png
+Navegador (HTML estático)  →  Edge Functions  →  Postgres + Storage
+       │                       (service_role)
+       └── /admin → Google → RLS por correo
 ```
+
+| Pieza | Servicio |
+|---|---|
+| Páginas | Cloudflare Workers (estático) |
+| Datos | Supabase Postgres |
+| Fotos | Supabase Storage, depósito privado |
+| Identidad | Supabase Auth con Google, **solo administradores** |
+
+No hay servidor propio que mantener. Google se usa **únicamente** como
+proveedor de identidad: nada de Sheets ni de Drive.
+
+### El modelo de seguridad
+
+La clave publicable viaja en el HTML —es pública por diseño—, así que:
+
+- **Ninguna tabla es accesible con esa clave.** Ni lectura ni escritura.
+- La única forma de escribir es a través de las Edge Functions, que corren con
+  credenciales de servidor y validan todo: el código contra la tabla de
+  trabajadores, los sectores contra el mapa real, los topes de tamaño.
+- El administrador ve los datos porque su sesión de Google se compara contra una
+  lista de correos autorizados **dentro de la base**, no en el navegador.
+
+Hay un freno de intentos por IP contra la adivinación de códigos. Una marca
+correcta lo limpia, para que un trabajador que se equivoca no deje bloqueado al
+otro —la planta comparte una sola IP.
+
+---
+
+## Estructura
+
+```
+public/              lo único que se publica
+├── index.html       kiosko
+├── admin.html       panel de administrador
+├── amm.html         convertidor AMM
+├── backend.js       elige el backend según el dominio
+├── logo.png
+└── _headers         cabeceras de seguridad
+
+supabase/
+├── instalacion.sql  reconstruye el backend entero en un proyecto vacío
+└── functions/
+    ├── marcar/      asistencia
+    ├── estado/      quién está en planta
+    └── registrar/   insumos, actividad y visitas
+
+wrangler.jsonc       configuración del despliegue
+CLAUDE.md            contexto técnico y decisiones de diseño
+```
+
+**Nunca publiques la raíz del repositorio**, solo `public/`. Fuera de esa
+carpeta hay archivos que no deben quedar expuestos.
+
+---
+
+## Desarrollo
+
+### Entornos
+
+Hay dos proyectos de Supabase: producción y pruebas. **La página elige a cuál
+hablarle según el dominio desde el que se sirve**, no según la rama:
+
+```
+gravitas-mantenimiento.alberto-175.workers.dev  →  producción
+cualquier otro origen (vistas previas, localhost) →  pruebas
+```
+
+Es deliberado. Si la rama de pruebas apuntara a pruebas cambiando un valor en un
+archivo, al hacer merge esa configuración viajaría a producción y el kiosko
+escribiría en la base equivocada sin que nadie lo note. Con detección por
+dominio, el mismo archivo es correcto de los dos lados.
+
+Cuando la página corre contra pruebas muestra una **cinta amarilla** fija.
+
+### Probar en local
+
+```bash
+python -m http.server 8090 --bind 127.0.0.1 --directory public
+# http://localhost:8090/index.html
+```
+
+Apunta a la base de pruebas. El puerto **8090** está en la lista de orígenes
+permitidos de las Edge Functions; con otro puerto, el CORS lo bloquea.
+
+`localhost` cuenta como contexto seguro, así que la cámara funciona sin desplegar.
+
+### Desplegar
+
+Cada `push` a `main` redespliega el sitio. **El orden importa:**
+
+1. Esquema y Edge Functions primero, en producción.
+2. Recién después, la interfaz.
+
+Al revés, el kiosko mostraría botones que llaman a algo que todavía no existe.
+
+`supabase/instalacion.sql` es idempotente: se puede pegar entero en el editor
+SQL de Supabase para instalar desde cero o para agregar lo que falte.
+
+> Los códigos de los trabajadores y los correos de administrador **no están en
+> este repositorio**: es público. `instalacion.sql` trae valores de ejemplo que
+> hay que reemplazar al ejecutarlo.
+
+---
+
+## Limitaciones conocidas
+
+- **Un turno que cruce la medianoche** se parte en dos jornadas incompletas en
+  el panel. Hoy no aplica porque el turno es diurno.
+- El mapa de la planta está definido **en dos lugares**: en el kiosko para
+  dibujarlo y en la Edge Function para validarlo. Manda el de la función. Si
+  cambia la planta, hay que cambiar los dos.
+- Las marcas encoladas sin conexión se descartan pasados **7 días**.

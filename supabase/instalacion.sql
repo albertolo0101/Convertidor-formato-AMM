@@ -144,14 +144,18 @@ create policy "admins leen fotos" on storage.objects
 -- se acierta antes de que el freno de intentos alcance a actuar.
 -- ----------------------------------------------------------------------------
 
+-- ESTE REPOSITORIO ES PUBLICO. No pongas aca los codigos reales ni los correos
+-- reales: reemplazalos al ejecutar y no los vuelvas a guardar en el archivo.
+-- Los codigos son la credencial del trabajador y el endpoint es descubrible
+-- desde el HTML publicado.
+
 insert into public.trabajadores (codigo, nombre) values
-  ('2934', 'Winston Pinto'),
-  ('9563', 'David Vargas')
+  ('0000', 'CAMBIAR - Trabajador Uno'),
+  ('0001', 'CAMBIAR - Trabajador Dos')
 on conflict (codigo) do update set nombre = excluded.nombre;
 
 insert into public.admins (email) values
-  ('alberto@energygravitas.com'),
-  ('albertolopez2199@gmail.com')
+  ('cambiar@ejemplo.com')
 on conflict (email) do nothing;
 
 

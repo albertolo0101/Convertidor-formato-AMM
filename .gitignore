@@ -1,9 +1,15 @@
-config.js
+# Datos y credenciales de la epoca local (servidor Flask). El servidor ya no
+# existe, pero datos/ conserva registros historicos que no deben publicarse.
 config.json
 credentials.json
 token.json
 datos/
+
+# Derivados
 .venv/
 __pycache__/
 *.pyc
+node_modules/
+
+# Configuracion local de herramientas
 .claude/
