@@ -118,9 +118,10 @@ Dos políticas distintas, no las confundas:
 |---|---|
 | Ref | `rshrbxqflzyqkmaywcwv` |
 | URL | `https://rshrbxqflzyqkmaywcwv.supabase.co` |
-| Región | `us-east-1` |
+| Región | `us-west-2` |
 | Proyecto | `GRAVITAS` |
 | Cuenta | **Cuenta de trabajo** (`alberto@energygravitas.com`) |
+| Organizacion | `yespfcmpitmqvospiaah` — `GRAVITAS` |
 | Plan | Free, $0/mes |
 
 **Clave publicable** (va en el HTML, es pública por diseño):
@@ -286,18 +287,20 @@ Se resolvio recreando el proyecto bajo la cuenta de trabajo
 (`rshrbxqflzyqkmaywcwv`) y borrando el original. No se perdio ningun dato: la
 base estaba en cero, recien limpiada de las pruebas.
 
-**Consecuencia vigente:** el conector MCP de Supabase esta autenticado contra la
-cuenta personal y **no alcanza este proyecto**. En la practica:
+**Resuelto.** El conector se reautorizo apuntando a la organizacion `GRAVITAS`
+y el acceso programatico esta operativo.
 
-- No se pueden aplicar migraciones, desplegar la Edge Function ni consultar la
-  base desde las herramientas. Todo eso lo hace el usuario desde el panel.
-- Lo que si se puede hacer desde afuera es **verificar**: la Edge Function, el
-  bloqueo de `anon` sobre cada tabla, el estado del bucket y los proveedores de
-  Auth se comprueban con `curl` contra los endpoints publicos. Usá eso para
-  confirmar cualquier cambio en vez de darlo por hecho.
-- Para recuperar el acceso programatico habria que reconectar el conector de
-  Supabase con la cuenta de trabajo, o invitar a la cuenta personal a la
-  organizacion nueva.
+**Lo que se aprendio, y conviene no volver a tropezar:** el conector de Supabase
+se vincula a **una sola organizacion a la vez**. Ese alcance queda grabado en el
+token al autorizarlo; agregar la cuenta a otra organizacion despues **no** amplia
+lo que el token ya puede ver. Si en el futuro aparece un proyecto que existe pero
+el conector no lista, la causa mas probable es esa — no una falta de permisos.
+Se arregla reautorizando el conector y eligiendo la organizacion correcta.
+
+Vale la pena conservar la costumbre de **verificar desde afuera con `curl`**
+contra los endpoints publicos (Edge Function, bloqueo de `anon` por tabla,
+estado del bucket, proveedores de Auth). Prueba lo que ve el mundo real, no lo
+que ve un administrador con credenciales privilegiadas.
 
 Por eso existe `supabase/instalacion.sql`: reconstruye el backend entero en un
 proyecto vacio de una sola pasada. Manteneelo al dia si el esquema cambia — es
