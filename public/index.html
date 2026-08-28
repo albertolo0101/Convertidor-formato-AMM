@@ -167,9 +167,11 @@ body::before{content:'';position:fixed;inset:0;
 
 </div>
 
+<script src="backend.js"></script>
 <script>
-const FUNCION_URL = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/marcar';
-const ESTADO_URL  = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/estado';
+const FUNCION_URL    = BACKEND.funcion('marcar');
+const ESTADO_URL     = BACKEND.funcion('estado');
+const REGISTRAR_URL  = BACKEND.funcion('registrar');
 
 const MS_REFRESCO_DENTRO = 60000;
 
