@@ -70,17 +70,23 @@ button,select,input{font-family:var(--mono);}
 .dia-hdr{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
   text-transform:uppercase;color:var(--accent);padding-bottom:9px;
   border-bottom:1px solid var(--border2);margin-bottom:2px;}
-.fila{display:grid;grid-template-columns:74px 1fr 108px 96px;gap:14px;align-items:center;
+/* fecha · nombre · entrada · foto · salida · foto · total */
+.fila{display:grid;grid-template-columns:96px 1fr 76px 72px 76px 72px 88px;
+  gap:12px;align-items:center;
   padding:11px 4px;border-bottom:1px solid rgba(26,34,53,.55);font-family:var(--mono);font-size:13px;}
+.fila.cab{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+  border-bottom:1px solid var(--border2);padding-bottom:9px;}
 .fila:last-child{border-bottom:none;}
-.f-hora{color:var(--accent);}
+.f-fecha{color:var(--dim);font-size:11px;}
 .f-nombre{color:var(--bright);font-family:var(--sans);font-size:14px;}
-.f-accion{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-  text-align:center;padding:4px 0;border:1px solid;}
-.f-accion.entrada{color:var(--green);border-color:rgba(0,255,136,.35);background:var(--green-dim);}
-.f-accion.salida{color:var(--yellow);border-color:rgba(255,209,102,.35);background:var(--yellow-dim);}
-.f-foto{display:flex;justify-content:flex-end;}
-.f-foto img{width:64px;height:48px;object-fit:cover;border:1px solid var(--border2);
+.f-entrada{color:var(--green);}
+.f-salida{color:var(--yellow);}
+.f-total{color:var(--accent);text-align:right;}
+.f-total.abierta{color:var(--dim);font-size:11px;}
+.f-falta{color:var(--red);}
+.f-extra{font-size:9px;color:var(--dim);letter-spacing:.06em;}
+.f-foto{display:flex;justify-content:center;}
+.f-foto img{width:60px;height:45px;object-fit:cover;border:1px solid var(--border2);
   cursor:pointer;transform:scaleX(-1);transition:border-color .15s;}
 .f-foto img:hover{border-color:var(--accent);}
 .sin-foto{font-size:9px;letter-spacing:.1em;text-transform:uppercase;
@@ -332,7 +338,80 @@ async function agregarUrlsDeFotos(filas) {
   filas.forEach(f => { f.url_foto = f.foto_path ? porRuta[f.foto_path] : null; });
 }
 
+/**
+ * Convierte marcas sueltas en jornadas: una fila por trabajador y por día, con
+ * su entrada, su salida y las horas trabajadas.
+ *
+ * Se recorren las marcas del día en orden y se emparejan: cada entrada cierra
+ * con la primera salida que la siga. Las horas totales son la SUMA de los
+ * tramos, no la resta entre la primera entrada y la última salida — así un
+ * trabajador que sale a almorzar y vuelve no cobra el almuerzo como trabajado.
+ *
+ * La fila muestra la primera entrada y la última salida del día. Si hubo más
+ * marcas que ese par, se indica aparte para que nada quede oculto.
+ */
+function armarJornadas(filas) {
+  const porClave = {};
+  filas.forEach(f => {
+    const dia = fechaGT(new Date(f.marcado_en));
+    const nombre = f.trabajadores ? f.trabajadores.nombre : '(trabajador eliminado)';
+    const clave = dia + '|' + nombre;
+    (porClave[clave] = porClave[clave] || { dia, nombre, marcas: [] }).marcas.push(f);
+  });
+
+  return Object.keys(porClave).map(clave => {
+    const g = porClave[clave];
+    g.marcas.sort((a, b) => new Date(a.marcado_en) - new Date(b.marcado_en));
+
+    let ms = 0;
+    let abierta = null;      // entrada todavía sin su salida
+    let tramos = 0;
+    g.marcas.forEach(m => {
+      if (m.accion === 'entrada') {
+        if (!abierta) abierta = m;
+      } else if (abierta) {
+        ms += new Date(m.marcado_en) - new Date(abierta.marcado_en);
+        tramos++;
+        abierta = null;
+      }
+    });
+
+    const entradas = g.marcas.filter(m => m.accion === 'entrada');
+    const salidas = g.marcas.filter(m => m.accion === 'salida');
+
+    return {
+      dia: g.dia,
+      nombre: g.nombre,
+      entrada: entradas[0] || null,
+      salida: salidas.length ? salidas[salidas.length - 1] : null,
+      ms,
+      // Sigue adentro (o se olvidó de marcar la salida): las horas no cierran
+      sinCerrar: abierta !== null,
+      // Marcas más allá del par que se muestra, para no ocultar nada
+      extra: Math.max(0, g.marcas.length - (entradas.length ? 1 : 0) - (salidas.length ? 1 : 0)),
+      tramos,
+    };
+  }).sort((a, b) =>
+    a.dia === b.dia ? a.nombre.localeCompare(b.nombre) : (a.dia < b.dia ? 1 : -1));
+}
+
+function duracion(ms) {
+  const min = Math.round(ms / 60000);
+  return Math.floor(min / 60) + 'h ' + String(min % 60).padStart(2, '0') + 'm';
+}
+
 /* ---------- Render ---------- */
+function celdaFoto(marca, nombre) {
+  if (!marca) return '<span class="sin-foto">—</span>';
+  if (marca.url_foto) {
+    const pie = (nombre + ' · ' + horaGT(new Date(marca.marcado_en))).replace(/'/g, '');
+    return '<img src="' + esc(marca.url_foto) + '" alt="Marca de ' + esc(nombre) + '"' +
+           ' onclick="abrirVisor(this.src, \'' + esc(pie) + '\')"/>';
+  }
+  if (marca.foto_purgada) return '<span class="sin-foto">Expirada</span>';
+  return '<span class="sin-foto alerta">Sin foto</span>';
+}
+
 function pintar(filas) {
   const cont = document.getElementById('registros');
   const resumen = document.getElementById('resumen');
@@ -343,45 +422,53 @@ function pintar(filas) {
     return;
   }
 
-  const entradas = filas.filter(f => f.accion === 'entrada').length;
-  const salidas = filas.filter(f => f.accion === 'salida').length;
+  const jornadas = armarJornadas(filas);
+  const msTotal = jornadas.reduce((s, j) => s + j.ms, 0);
+  const sinCerrar = jornadas.filter(j => j.sinCerrar).length;
   const sinFoto = filas.filter(f => !f.foto_path && !f.foto_purgada).length;
 
   resumen.innerHTML =
-    'Marcas <b>' + filas.length + '</b>' +
-    ' · Entradas <b>' + entradas + '</b>' +
-    ' · Salidas <b>' + salidas + '</b>' +
+    'Jornadas <b>' + jornadas.length + '</b>' +
+    ' · Marcas <b>' + filas.length + '</b>' +
+    ' · Horas totales <b>' + duracion(msTotal) + '</b>' +
+    (sinCerrar ? ' · Sin cerrar <b>' + sinCerrar + '</b>' : '') +
     (sinFoto ? ' · Sin foto <b>' + sinFoto + '</b>' : '');
 
-  // Agrupar por día de Guatemala, no por día UTC
-  const porDia = {};
-  filas.forEach(f => {
-    const dia = fechaGT(new Date(f.marcado_en));
-    (porDia[dia] = porDia[dia] || []).push(f);
-  });
+  const cabecera =
+    '<div class="fila cab">' +
+    '<span>Fecha</span><span>Trabajador</span><span>Entrada</span><span>Foto</span>' +
+    '<span>Salida</span><span>Foto</span><span style="text-align:right;">Horas</span>' +
+    '</div>';
 
-  cont.innerHTML = Object.keys(porDia).sort().reverse().map(dia => {
-    const cuerpo = porDia[dia].map(f => {
-      const nombre = f.trabajadores ? f.trabajadores.nombre : '(trabajador eliminado)';
-      let foto;
-      if (f.url_foto) {
-        foto = '<img src="' + esc(f.url_foto) + '" alt="Marca de ' + esc(nombre) + '"' +
-               ' onclick="abrirVisor(this.src, \'' + esc(nombre).replace(/'/g, '') +
-               ' · ' + esc(horaGT(new Date(f.marcado_en))) + '\')"/>';
-      } else if (f.foto_purgada) {
-        foto = '<span class="sin-foto">Expirada</span>';
-      } else {
-        foto = '<span class="sin-foto alerta">Sin foto</span>';
-      }
-      return '<div class="fila">' +
-        '<span class="f-hora">' + esc(horaGT(new Date(f.marcado_en))) + '</span>' +
-        '<span class="f-nombre">' + esc(nombre) + '</span>' +
-        '<span class="f-accion ' + esc(f.accion) + '">' + esc(f.accion) + '</span>' +
-        '<span class="f-foto">' + foto + '</span>' +
-        '</div>';
-    }).join('');
-    return '<div class="dia"><div class="dia-hdr">' + esc(diaLargoGT(dia)) + '</div>' + cuerpo + '</div>';
+  const cuerpo = jornadas.map(j => {
+    const horaEnt = j.entrada
+      ? '<span class="f-entrada">' + esc(horaGT(new Date(j.entrada.marcado_en))) + '</span>'
+      : '<span class="f-falta">falta</span>';
+    const horaSal = j.salida
+      ? '<span class="f-salida">' + esc(horaGT(new Date(j.salida.marcado_en))) + '</span>'
+      : '<span class="f-falta">falta</span>';
+
+    let total;
+    if (j.ms > 0) {
+      total = '<span class="f-total">' + duracion(j.ms) +
+        (j.sinCerrar ? '<br><span class="f-extra">+ abierta</span>' : '') + '</span>';
+    } else {
+      total = '<span class="f-total abierta">' + (j.sinCerrar ? 'sin cerrar' : '—') + '</span>';
+    }
+
+    return '<div class="fila">' +
+      '<span class="f-fecha">' + esc(j.dia) + '</span>' +
+      '<span class="f-nombre">' + esc(j.nombre) +
+        (j.extra ? ' <span class="f-extra">+' + j.extra + ' marcas</span>' : '') + '</span>' +
+      horaEnt +
+      '<span class="f-foto">' + celdaFoto(j.entrada, j.nombre) + '</span>' +
+      horaSal +
+      '<span class="f-foto">' + celdaFoto(j.salida, j.nombre) + '</span>' +
+      total +
+      '</div>';
   }).join('');
+
+  cont.innerHTML = '<div class="dia">' + cabecera + cuerpo + '</div>';
 }
 
 function abrirVisor(src, pie) {
@@ -399,17 +486,25 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarVisor(
 function exportarCsv() {
   if (!registros.length) return;
 
-  // El código de 4 dígitos NO se exporta: es la credencial del trabajador y no
-  // tiene por qué terminar en una hoja de cálculo compartida.
-  const filas = [['fecha', 'hora', 'trabajador', 'accion', 'foto']];
-  registros.slice().reverse().forEach(f => {
-    const d = new Date(f.marcado_en);
+  // Se exporta una fila por jornada, igual que se ve en pantalla: es lo que
+  // sirve para nómina. El código de 4 dígitos NO se exporta — es la credencial
+  // del trabajador y no tiene por qué terminar en una hoja compartida.
+  const filas = [['fecha', 'trabajador', 'entrada', 'salida', 'horas', 'horas_decimal', 'observacion']];
+
+  armarJornadas(registros).slice().reverse().forEach(j => {
+    let obs = '';
+    if (j.sinCerrar) obs = 'sin marcar salida';
+    else if (!j.entrada) obs = 'sin marcar entrada';
+    if (j.extra) obs = (obs ? obs + '; ' : '') + j.extra + ' marcas adicionales';
+
     filas.push([
-      fechaGT(d),
-      horaGT(d),
-      f.trabajadores ? f.trabajadores.nombre : '',
-      f.accion,
-      f.foto_path ? 'si' : (f.foto_purgada ? 'expirada' : 'no'),
+      j.dia,
+      j.nombre,
+      j.entrada ? horaGT(new Date(j.entrada.marcado_en)) : '',
+      j.salida ? horaGT(new Date(j.salida.marcado_en)) : '',
+      j.ms > 0 ? duracion(j.ms) : '',
+      j.ms > 0 ? (j.ms / 3600000).toFixed(2) : '',
+      obs,
     ]);
   });
 

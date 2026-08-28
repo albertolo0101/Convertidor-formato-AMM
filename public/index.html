@@ -36,6 +36,19 @@ body::before{content:'';position:fixed;inset:0;
 .reloj-hora{font-size:26px;font-weight:700;color:var(--accent);line-height:1;letter-spacing:-.01em;}
 .reloj-fecha{font-size:10px;color:var(--dim);margin-top:5px;letter-spacing:.08em;}
 
+/* ---------- Quien esta dentro ---------- */
+.dentro{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:11px 14px;margin-bottom:6px;min-height:42px;
+  background:var(--surface);border:1px solid var(--border);}
+.dentro-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim);}
+.dentro-persona{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;color:var(--bright);}
+.dentro-punto{width:9px;height:9px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 7px rgba(0,255,136,.75);flex-shrink:0;animation:latir 2.4s ease-in-out infinite;}
+@keyframes latir{0%,100%{opacity:1;}50%{opacity:.45;}}
+.dentro-desde{color:var(--dim);font-size:11px;}
+.dentro-nadie{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em;}
+
 /* Cada pantalla ocupa el espacio restante y se centra */
 .pantalla{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;}
 .pantalla.activa{display:flex;}
@@ -109,6 +122,8 @@ body::before{content:'';position:fixed;inset:0;
     </div>
   </div>
 
+  <div class="dentro" id="dentro"></div>
+
   <!-- 1. Ingreso de codigo -->
   <div class="pantalla activa" id="p-codigo">
     <div class="instruccion">Ingresá tu código</div>
@@ -154,6 +169,9 @@ body::before{content:'';position:fixed;inset:0;
 
 <script>
 const FUNCION_URL = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/marcar';
+const ESTADO_URL  = 'https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/estado';
+
+const MS_REFRESCO_DENTRO = 60000;
 
 const SEGUNDOS_CUENTA      = 3;      // cuenta regresiva antes de la foto
 const MS_MOSTRAR_RESULTADO = 6000;
@@ -174,6 +192,43 @@ function actualizarReloj() {
 }
 actualizarReloj();
 setInterval(actualizarReloj, 1000);
+
+/* ---------- Quien esta dentro ---------- */
+function escHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t == null ? '' : String(t);
+  return d.innerHTML;
+}
+
+async function refrescarDentro() {
+  const caja = document.getElementById('dentro');
+  let datos;
+  try {
+    const resp = await fetch(ESTADO_URL);
+    datos = await resp.json();
+  } catch (e) {
+    // Sin conexión no se toca lo que ya se muestra: es preferible un dato de
+    // hace un minuto que una caja vacía que parezca "no hay nadie".
+    return;
+  }
+
+  const dentro = (datos && datos.dentro) || [];
+  if (!dentro.length) {
+    caja.innerHTML = '<span class="dentro-nadie">NADIE EN LA PLANTA</span>';
+    return;
+  }
+
+  caja.innerHTML =
+    '<span class="dentro-lbl">En planta</span>' +
+    dentro.map(function (p) {
+      return '<span class="dentro-persona"><span class="dentro-punto"></span>' +
+             escHtml(p.nombre) +
+             '<span class="dentro-desde">desde ' + escHtml(p.desde) + '</span></span>';
+    }).join('');
+}
+
+refrescarDentro();
+setInterval(refrescarDentro, MS_REFRESCO_DENTRO);
 
 /* ---------- Navegacion entre pantallas ---------- */
 function mostrar(id) {
@@ -332,6 +387,7 @@ function mostrarResultado(d) {
   document.getElementById('res-nota').textContent = nota;
 
   mostrar('p-resultado');
+  refrescarDentro();   // el indicador debe reflejar esta marca de inmediato
   temporizador = setTimeout(reiniciar, MS_MOSTRAR_RESULTADO);
 }
 

@@ -305,3 +305,64 @@ que ve un administrador con credenciales privilegiadas.
 Por eso existe `supabase/instalacion.sql`: reconstruye el backend entero en un
 proyecto vacio de una sola pasada. Manteneelo al dia si el esquema cambia — es
 la unica via de instalacion que no depende del conector.
+
+
+---
+
+# Kiosko: indicador de quien esta en planta
+
+El kiosko muestra arriba quien esta actualmente dentro, con un punto verde.
+
+**Esto invirtio una decision anterior.** Al principio el kiosko no mostraba
+ningun nombre hasta ingresar un codigo, para no revelar quien trabaja en la
+planta. Se cambio a pedido del usuario: ver de un vistazo quien esta adentro es
+util operativamente, y el anonimato de los nombres no era lo que protegia el
+registro — eso lo hacen el codigo de 4 digitos y la foto. **No lo "restaures"
+pensando que es una regresion de seguridad.**
+
+## Edge Function `estado`
+
+Segunda —y ultima— puerta publica del kiosko. `anon` no puede leer tablas, asi
+que el kiosko necesita esta funcion para saber quien esta dentro.
+
+```
+GET /functions/v1/estado  ->  { ok: true, dentro: [{ nombre, desde }] }
+```
+
+Expone **solo nombre y hora de entrada**. Nunca codigos, ids ni historial.
+Cualquiera en internet puede leer lo que salga de aca: si vas a agregarle
+campos, pensalo dos veces.
+
+"Dentro" = su ultima marca es una `entrada` **de hoy**. Una entrada de ayer sin
+salida es un olvido, no alguien que sigue en la planta.
+
+El kiosko lo refresca cada 60 s y ademas justo despues de cada marca. Si falla
+la peticion no borra lo que ya muestra: es preferible un dato de hace un minuto
+que una caja vacia que parezca "no hay nadie".
+
+# Panel admin: jornadas, no marcas sueltas
+
+Una fila por trabajador y por dia:
+`fecha · nombre · entrada · foto · salida · foto · horas totales`
+
+Las horas son la **suma de los tramos** entrada→salida, no la resta entre la
+primera entrada y la ultima salida. Asi quien sale a almorzar y vuelve no cobra
+el almuerzo. La fila muestra la primera entrada y la ultima salida; si hubo mas
+marcas, se indica con `+N marcas` para no ocultar nada.
+
+Casos que la UI distingue a proposito:
+- `falta` en rojo — no marco entrada, o no marco salida.
+- `sin cerrar` — sigue adentro o se olvido de marcar la salida; las horas no cierran.
+- `Sin foto` en rojo vs `Expirada` en gris — la primera merece revision, la
+  segunda es la retencion de 10 dias funcionando.
+
+El CSV exporta jornadas con las mismas columnas, mas `horas_decimal` para
+calculos de nomina y una columna de observaciones.
+
+**Limitacion conocida:** un turno que cruce la medianoche de Guatemala se parte
+en dos filas incompletas. Hoy no aplica (turno diurno). Si algun dia hay turno
+nocturno, hay que reescribir `armarJornadas`.
+
+La logica de emparejado esta cubierta por pruebas: extraer `armarJornadas` y
+`duracion` de `public/admin.html` y correrlas con Node. Casos verificados:
+jornada normal, almuerzo, olvido de salida, salida huerfana y dias separados.
