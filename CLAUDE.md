@@ -4,6 +4,11 @@ Herramienta interna de **Gravitas, Planta Solar 5 MW (Guatemala)**. Repo:
 `Convertidor-formato-AMM` (el nombre viene del módulo original; hoy el proyecto
 es más amplio).
 
+**Alcance:** esta suite es del **departamento de mantenimiento** de la planta.
+La administración de la planta se maneja en otra suite aparte, fuera de este
+repo. Por eso el proyecto desplegado se llama `gravitas-mantenimiento`: el
+nombre es correcto, no lo "corrijas" a algo más genérico.
+
 ## Estado: migración de local → nube (agosto 2026)
 
 El proyecto **era** un servidor Flask local (`servidor.py`) que guardaba CSVs en
@@ -208,16 +213,59 @@ python -m http.server 8090 --bind 127.0.0.1 --directory <raiz del repo>
 
 Ojo: las marcas de prueba caen en la base de produccion. Limpialas despues.
 
+# Despliegue — Cloudflare
+
+| | |
+|---|---|
+| URL de produccion | `https://gravitas-mantenimiento.alberto-175.workers.dev` |
+| Proyecto | `gravitas-mantenimiento` |
+| Rama de produccion | `main` |
+| Carpeta publicada | `public/` |
+| Configuracion | `wrangler.jsonc` (versionada) |
+
+**Cada push a `main` redespliega.** No hay paso manual.
+
+Se desplego como **Worker con assets estaticos**, no como Pages: es el camino
+por defecto de Cloudflare hoy. `_headers` funciona igual (verificado: las cuatro
+cabeceras llegan, incluida `permissions-policy: camera=(self)`).
+
+Cloudflare sirve las paginas sin extension: `/amm.html` redirige a `/amm`.
+
+## Verificado en produccion
+
+- `/`, `/amm`, `/logo.png` -> 200.
+- `servidor.py`, `config.json`, `config.example.json`, `requirements.txt`,
+  `zonas.json`, `README.md`, `CLAUDE.md`, `datos/asistencia.csv` y el codigo de
+  la Edge Function -> **404**. Nada privado esta expuesto.
+- Las cuatro cabeceras de `_headers` se aplican.
+
+## Molestia conocida del build
+
+Cloudflare detecta `requirements.txt` y corre `pip install` (Flask + librerias
+de Google, 30 paquetes) en cada despliegue de un sitio que es puro HTML.
+Desaparece solo cuando la Fase 5 borre Flask.
+
+## CORS de la Edge Function
+
+Restringido a la URL de produccion, a `localhost:8090` y a cualquier
+`*.alberto-175.workers.dev` (las vistas previas de cada version).
+
+**El CORS no protege el endpoint.** Solo impide que un navegador en otro dominio
+lea la respuesta; con `curl` se saltea por completo. Las defensas reales son el
+codigo de 4 digitos, el freno de intentos y la foto. Si cambia el dominio, hay
+que actualizar `ORIGENES_PERMITIDOS` **y redesplegar la funcion**.
+
 ## Pendientes
 
-- [x] Trabajadores cargados: `1234` Winston Pinto, `4321` David Vargas.
-      Trabajador de prueba y todas las marcas de prueba eliminados.
-      Nota: `1234` y `4321` son adivinables; la foto es la defensa real, pero
-      cambiarlos por codigos aleatorios es un UPDATE si se quiere endurecer.
+- [x] Trabajadores cargados: `2934` Winston Pinto, `9563` David Vargas.
+      Codigos no obvios a proposito: el endpoint es descubrible desde el HTML
+      publicado, y un `1234` se acierta antes de que el freno actue.
+      Base limpia: 0 marcas, 0 fotos, 0 intentos.
 - [x] Admins cargados: `alberto@energygravitas.com` y `albertolopez2199@gmail.com`.
 - [ ] Habilitar el proveedor Google en Supabase Auth.
-- [ ] Restringir el CORS de `marcar` de `*` al dominio final.
-- [ ] Desplegar `public/` en **Cloudflare Pages** (cuenta ya creada). No Vercel:
-      su plan Hobby excluye uso comercial y esto es herramienta de empresa.
-- [ ] Considerar cambiar los codigos `1234`/`4321`: el endpoint es descubrible
-      desde el HTML desplegado y esos dos se aciertan al primer intento.
+- [x] CORS restringido al dominio de produccion.
+- [x] Desplegado en Cloudflare y verificado.
+- [ ] **Fase 4:** panel de administrador (`public/admin.html`).
+- [ ] **Fase 5:** borrar Flask, Sheets, CSV y las paginas legadas de `web/`.
+- [ ] Acceso directo en modo kiosko en la PC de la planta.
+- [ ] Cola offline en `localStorage`: hoy, sin internet, no se puede marcar.

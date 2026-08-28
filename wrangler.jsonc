@@ -1,0 +1,29 @@
+// Configuracion del despliegue en Cloudflare.
+//
+// Sin este archivo, Cloudflare autodetecta los ajustes en cada build y los
+// genera al vuelo. Versionarlo deja el nombre y la carpeta publicada explicitos
+// y bajo control de cambios, en vez de depender de una deteccion automatica que
+// puede cambiar cuando Cloudflare actualice sus defaults.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gravitas-mantenimiento",
+  "compatibility_date": "2026-08-26",
+
+  // Se publica UNICAMENTE esta carpeta. La raiz del repo tiene datos privados
+  // (config.json, datos/, servidor.py): nunca la apuntes a "." ni la dejes
+  // vacia.
+  "assets": {
+    "directory": "public"
+  },
+
+  "workers_dev": true,
+
+  // Cada version desplegada recibe su propia URL de vista previa. Sirve para
+  // probar un cambio antes de que llegue al kiosko de la planta. El CORS de la
+  // Edge Function acepta ese subdominio a proposito.
+  "preview_urls": true,
+
+  "observability": {
+    "enabled": true
+  }
+}

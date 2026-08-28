@@ -26,17 +26,35 @@ const MAX_FOTO_BYTES = 2 * 1024 * 1024;
 // SALIDA — y la jornada queda corrupta sin que nadie se de cuenta.
 const GRACIA_SEG = 90;
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// El CORS NO protege este endpoint: solo impide que un navegador en otro
+// dominio lea la respuesta. Con curl se saltea por completo. Las defensas
+// reales son el codigo de 4 digitos, el freno de intentos y la foto.
+// Aun asi se restringe, para que nadie monte un kiosko falso en su propio
+// dominio y marque desde el navegador de un tercero.
+const ORIGENES_PERMITIDOS = [
+  "https://gravitas-mantenimiento.alberto-175.workers.dev",
+  "http://localhost:8090",
+  "http://127.0.0.1:8090",
+];
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, "Content-Type": "application/json" },
-  });
+// Cloudflare da una URL propia a cada version desplegada, bajo el subdominio de
+// la cuenta. Se aceptan para poder probar un cambio antes de que llegue al
+// kiosko de la planta.
+const SUFIJO_VISTAS_PREVIAS = ".alberto-175.workers.dev";
+
+function cabecerasCors(origen: string | null): Record<string, string> {
+  const cabeceras: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+  const permitido = origen !== null && (
+    ORIGENES_PERMITIDOS.includes(origen) ||
+    (origen.startsWith("https://") && origen.endsWith(SUFIJO_VISTAS_PREVIAS))
+  );
+  if (permitido) cabeceras["Access-Control-Allow-Origin"] = origen;
+  return cabeceras;
+}
 
 /** Fecha YYYY-MM-DD en hora de Guatemala, no en UTC. */
 function fechaGT(d: Date): string {
@@ -91,6 +109,13 @@ async function purgarFotosViejas(db: ReturnType<typeof createClient>) {
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = cabecerasCors(req.headers.get("origin"));
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, error: "Metodo no permitido" }, 405);
 
