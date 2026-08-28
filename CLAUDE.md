@@ -116,14 +116,15 @@ Dos políticas distintas, no las confundas:
 
 | | |
 |---|---|
-| Ref | `hfudsedbkmbptxidyzyy` |
-| URL | `https://hfudsedbkmbptxidyzyy.supabase.co` |
+| Ref | `rshrbxqflzyqkmaywcwv` |
+| URL | `https://rshrbxqflzyqkmaywcwv.supabase.co` |
 | Región | `us-east-1` |
-| Org | `swkmkfjuizpbikxfgdsl` (cuenta personal — se puede transferir a la de trabajo) |
+| Proyecto | `GRAVITAS` |
+| Cuenta | **Cuenta de trabajo** (`alberto@energygravitas.com`) |
 | Plan | Free, $0/mes |
 
 **Clave publicable** (va en el HTML, es pública por diseño):
-`sb_publishable_gFWtRg4rBwlAPZ3dp0M3ug_nL5T6x_6`
+`sb_publishable_kCF5u53qP_6qhAn0wu0oNQ_qoov7lWA`
 
 La `service_role` **no** se guarda en el repo. La Edge Function la recibe del
 entorno (`SUPABASE_SERVICE_ROLE_KEY`), inyectada automáticamente por Supabase.
@@ -131,7 +132,7 @@ entorno (`SUPABASE_SERVICE_ROLE_KEY`), inyectada automáticamente por Supabase.
 ## Endpoint del kiosko
 
 ```
-POST https://hfudsedbkmbptxidyzyy.supabase.co/functions/v1/marcar
+POST https://rshrbxqflzyqkmaywcwv.supabase.co/functions/v1/marcar
 Content-Type: application/json
 { "codigo": "1234", "foto_base64": "data:image/jpeg;base64,..." | null }
 ```
@@ -269,3 +270,35 @@ que actualizar `ORIGENES_PERMITIDOS` **y redesplegar la funcion**.
 - [ ] **Fase 5:** borrar Flask, Sheets, CSV y las paginas legadas de `web/`.
 - [ ] Acceso directo en modo kiosko en la PC de la planta.
 - [ ] Cola offline en `localStorage`: hoy, sin internet, no se puede marcar.
+
+
+---
+
+# Historia: el proyecto se recreo (28 ago 2026)
+
+El primer proyecto de Supabase (`hfudsedbkmbptxidyzyy`) se creo bajo la cuenta
+**personal**, porque era la unica organizacion que alcanzaba el conector MCP.
+Al intentar habilitar Google Auth desde el navegador —con sesion de la cuenta de
+**trabajo**— el panel respondia "no tenes acceso": en Supabase son dos cuentas
+distintas.
+
+Se resolvio recreando el proyecto bajo la cuenta de trabajo
+(`rshrbxqflzyqkmaywcwv`) y borrando el original. No se perdio ningun dato: la
+base estaba en cero, recien limpiada de las pruebas.
+
+**Consecuencia vigente:** el conector MCP de Supabase esta autenticado contra la
+cuenta personal y **no alcanza este proyecto**. En la practica:
+
+- No se pueden aplicar migraciones, desplegar la Edge Function ni consultar la
+  base desde las herramientas. Todo eso lo hace el usuario desde el panel.
+- Lo que si se puede hacer desde afuera es **verificar**: la Edge Function, el
+  bloqueo de `anon` sobre cada tabla, el estado del bucket y los proveedores de
+  Auth se comprueban con `curl` contra los endpoints publicos. Usá eso para
+  confirmar cualquier cambio en vez de darlo por hecho.
+- Para recuperar el acceso programatico habria que reconectar el conector de
+  Supabase con la cuenta de trabajo, o invitar a la cuenta personal a la
+  organizacion nueva.
+
+Por eso existe `supabase/instalacion.sql`: reconstruye el backend entero en un
+proyecto vacio de una sola pasada. Manteneelo al dia si el esquema cambia — es
+la unica via de instalacion que no depende del conector.
