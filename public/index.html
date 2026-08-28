@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gravitas · Asistencia</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:#080b12; --surface:#0e1320; --surface2:#141a28;
+  --border:#1a2235; --border2:#243048;
+  --accent:#00e5ff; --accent-dim:rgba(0,229,255,.1);
+  --green:#00ff88; --green-dim:rgba(0,255,136,.08);
+  --yellow:#ffd166;
+  --red:#ff4466;
+  --text:#ccd6f6; --dim:#4a5878; --bright:#e8f0ff;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);
+  overflow:hidden;user-select:none;-webkit-user-select:none;}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;}
+
+.wrap{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;
+  max-width:640px;margin:0 auto;padding:28px 24px 32px;}
+
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-shrink:0;}
+.hdr-logo{height:44px;width:auto;display:block;}
+.hdr-txt h1{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--bright);letter-spacing:-.02em;}
+.hdr-txt p{font-size:10px;color:var(--dim);margin-top:3px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;}
+.reloj{margin-left:auto;text-align:right;font-family:var(--mono);}
+.reloj-hora{font-size:26px;font-weight:700;color:var(--accent);line-height:1;letter-spacing:-.01em;}
+.reloj-fecha{font-size:10px;color:var(--dim);margin-top:5px;letter-spacing:.08em;}
+
+/* Cada pantalla ocupa el espacio restante y se centra */
+.pantalla{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;}
+.pantalla.activa{display:flex;}
+
+/* ---------- Pantalla 1: codigo ---------- */
+.instruccion{font-family:var(--mono);font-size:12px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:22px;text-align:center;}
+
+.puntos{display:flex;gap:18px;margin-bottom:30px;}
+.punto{width:20px;height:20px;border:2px solid var(--border2);border-radius:50%;
+  transition:background .12s,border-color .12s,transform .12s;}
+.punto.lleno{background:var(--accent);border-color:var(--accent);transform:scale(1.12);}
+
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:360px;}
+.tecla{aspect-ratio:1.45;background:var(--surface);border:1px solid var(--border);
+  color:var(--bright);font-family:var(--mono);font-size:30px;font-weight:600;
+  cursor:pointer;transition:background .1s,border-color .1s;
+  display:flex;align-items:center;justify-content:center;}
+.tecla:hover{border-color:var(--border2);background:var(--surface2);}
+.tecla:active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+.tecla.aux{font-size:15px;color:var(--dim);letter-spacing:.08em;}
+.tecla.vacia{background:none;border:none;cursor:default;}
+.tecla.vacia:hover{background:none;}
+
+/* ---------- Pantalla 2: camara ---------- */
+.camara-caja{position:relative;width:100%;max-width:420px;aspect-ratio:4/3;
+  border:1px solid var(--border2);background:#000;overflow:hidden;margin-bottom:22px;}
+.camara-caja video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+.cuenta{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:96px;font-weight:700;color:var(--accent);
+  text-shadow:0 0 30px rgba(0,229,255,.5);pointer-events:none;}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+.flash.dispara{animation:flash .35s ease-out;}
+@keyframes flash{from{opacity:.85;}to{opacity:0;}}
+
+/* ---------- Pantalla 3: resultado ---------- */
+.res-nombre{font-family:var(--mono);font-size:clamp(28px,7vw,44px);font-weight:700;
+  color:var(--bright);text-align:center;margin-bottom:20px;letter-spacing:-.02em;}
+.res-accion{font-family:var(--mono);font-size:clamp(30px,8vw,52px);font-weight:700;
+  letter-spacing:.1em;padding:14px 40px;border:2px solid;margin-bottom:18px;}
+.res-accion.entrada{color:var(--green);border-color:var(--green);background:var(--green-dim);}
+.res-accion.salida{color:var(--yellow);border-color:var(--yellow);background:rgba(255,209,102,.08);}
+.res-hora{font-family:var(--mono);font-size:32px;color:var(--accent);letter-spacing:.04em;}
+.res-nota{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:26px;letter-spacing:.06em;}
+
+/* ---------- Pantalla de error ---------- */
+.err-icono{font-family:var(--mono);font-size:64px;color:var(--red);margin-bottom:18px;line-height:1;}
+.err-msg{font-family:var(--mono);font-size:17px;color:var(--bright);text-align:center;
+  max-width:400px;line-height:1.6;margin-bottom:10px;}
+.err-sub{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center;max-width:400px;line-height:1.6;}
+
+.cargando{font-family:var(--mono);font-size:14px;color:var(--dim);letter-spacing:.18em;
+  text-transform:uppercase;}
+
+.aviso-camara{font-family:var(--mono);font-size:10px;color:var(--dim);
+  text-align:center;margin-top:auto;padding-top:18px;line-height:1.6;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <img class="hdr-logo" src="logo.png" alt="Gravitas"/>
+    <div class="hdr-txt">
+      <h1>ASISTENCIA</h1>
+      <p>Planta Solar 5 MW</p>
+    </div>
+    <div class="reloj">
+      <div class="reloj-hora" id="reloj-hora">--:--</div>
+      <div class="reloj-fecha" id="reloj-fecha"></div>
+    </div>
+  </div>
+
+  <!-- 1. Ingreso de codigo -->
+  <div class="pantalla activa" id="p-codigo">
+    <div class="instruccion">Ingresá tu código</div>
+    <div class="puntos" id="puntos"></div>
+    <div class="teclado" id="teclado"></div>
+  </div>
+
+  <!-- 2. Captura de foto -->
+  <div class="pantalla" id="p-camara">
+    <div class="instruccion">Mirá a la cámara</div>
+    <div class="camara-caja">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="cuenta" id="cuenta"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+  </div>
+
+  <!-- 3. Enviando -->
+  <div class="pantalla" id="p-enviando">
+    <div class="cargando">Registrando...</div>
+  </div>
+
+  <!-- 4. Resultado -->
+  <div class="pantalla" id="p-resultado">
+    <div class="res-nombre" id="res-nombre"></div>
+    <div class="res-accion" id="res-accion"></div>
+    <div class="res-hora" id="res-hora"></div>
+    <div class="res-nota" id="res-nota"></div>
+  </div>
+
+  <!-- 5. Error -->
+  <div class="pantalla" id="p-error">
+    <div class="err-icono">!</div>
+    <div class="err-msg" id="err-msg"></div>
+    <div class="err-sub" id="err-sub"></div>
+  </div>
+
+  <div class="aviso-camara">
+    La foto solo verifica quién marcó · se guarda 10 días y luego se borra sola
+  </div>
+
+</div>
+
+<script>
+const FUNCION_URL = 'https://hfudsedbkmbptxidyzyy.supabase.co/functions/v1/marcar';
+
+const SEGUNDOS_CUENTA      = 3;      // cuenta regresiva antes de la foto
+const MS_MOSTRAR_RESULTADO = 6000;
+const MS_MOSTRAR_ERROR     = 5000;
+
+let codigo = '';
+let stream = null;
+let bloqueado = false;   // evita dobles marcas mientras se procesa una
+let temporizador = null;
+
+/* ---------- Reloj ---------- */
+function actualizarReloj() {
+  const ahora = new Date();
+  document.getElementById('reloj-hora').textContent =
+    ahora.toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit', hour12: false });
+  document.getElementById('reloj-fecha').textContent =
+    ahora.toLocaleDateString('es-GT', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+}
+actualizarReloj();
+setInterval(actualizarReloj, 1000);
+
+/* ---------- Navegacion entre pantallas ---------- */
+function mostrar(id) {
+  document.querySelectorAll('.pantalla').forEach(p => p.classList.remove('activa'));
+  document.getElementById(id).classList.add('activa');
+}
+
+function reiniciar() {
+  clearTimeout(temporizador);
+  codigo = '';
+  bloqueado = false;
+  pintarPuntos();
+  mostrar('p-codigo');
+}
+
+/* ---------- Teclado ---------- */
+function pintarPuntos() {
+  document.getElementById('puntos').innerHTML =
+    [0, 1, 2, 3].map(i => '<div class="punto ' + (i < codigo.length ? 'lleno' : '') + '"></div>').join('');
+}
+
+function pulsar(valor) {
+  if (bloqueado) return;
+  if (valor === 'borrar') {
+    codigo = codigo.slice(0, -1);
+  } else if (codigo.length < 4) {
+    codigo += valor;
+  }
+  pintarPuntos();
+  if (codigo.length === 4) {
+    bloqueado = true;
+    setTimeout(capturarYEnviar, 180);   // deja ver el 4o punto encenderse
+  }
+}
+
+(function armarTeclado() {
+  const teclas = ['1','2','3','4','5','6','7','8','9','vacia','0','borrar'];
+  const html = teclas.map(function (t) {
+    if (t === 'vacia')  return '<div class="tecla vacia"></div>';
+    if (t === 'borrar') return '<button class="tecla aux" data-v="borrar">BORRAR</button>';
+    return '<button class="tecla" data-v="' + t + '">' + t + '</button>';
+  }).join('');
+  const teclado = document.getElementById('teclado');
+  teclado.innerHTML = html;
+  teclado.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-v]');
+    if (btn) pulsar(btn.dataset.v);
+  });
+  pintarPuntos();
+})();
+
+// La PC de la planta puede tener teclado fisico o numerico
+document.addEventListener('keydown', function (e) {
+  if (!document.getElementById('p-codigo').classList.contains('activa')) return;
+  if (/^[0-9]$/.test(e.key)) pulsar(e.key);
+  else if (e.key === 'Backspace') pulsar('borrar');
+});
+
+/* ---------- Camara ---------- */
+async function arrancarCamara() {
+  if (stream) return true;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+    });
+    document.getElementById('video').srcObject = stream;
+    return true;
+  } catch (e) {
+    // Sin camara o permiso denegado: la marca se registra igual, sin foto.
+    stream = null;
+    return false;
+  }
+}
+
+// Pedir permiso apenas carga la pagina, para que no haya demora al marcar
+arrancarCamara();
+
+function tomarFoto() {
+  const video = document.getElementById('video');
+  if (!stream || !video.videoWidth) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+  return canvas.toDataURL('image/jpeg', 0.7);
+}
+
+function cuentaRegresiva(segundos) {
+  return new Promise(function (resolve) {
+    const el = document.getElementById('cuenta');
+    let n = segundos;
+    el.textContent = n;
+    const t = setInterval(function () {
+      n--;
+      if (n > 0) { el.textContent = n; return; }
+      clearInterval(t);
+      el.textContent = '';
+      const flash = document.getElementById('flash');
+      flash.classList.add('dispara');
+      setTimeout(function () { flash.classList.remove('dispara'); }, 400);
+      resolve();
+    }, 1000);
+  });
+}
+
+/* ---------- Marcar ---------- */
+async function capturarYEnviar() {
+  const hayCamara = await arrancarCamara();
+  let foto = null;
+
+  if (hayCamara) {
+    mostrar('p-camara');
+    await cuentaRegresiva(SEGUNDOS_CUENTA);
+    foto = tomarFoto();
+  }
+
+  mostrar('p-enviando');
+
+  let datos;
+  try {
+    const resp = await fetch(FUNCION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: codigo, foto_base64: foto }),
+    });
+    datos = await resp.json();
+  } catch (e) {
+    mostrarError('Sin conexión', 'No se pudo contactar al servidor. Intentá de nuevo en un momento.');
+    return;
+  }
+
+  if (!datos.ok) {
+    mostrarError(datos.error || 'No se pudo registrar', 'Verificá tu código e intentá de nuevo.');
+    return;
+  }
+
+  mostrarResultado(datos);
+}
+
+function mostrarResultado(d) {
+  document.getElementById('res-nombre').textContent = d.nombre;
+  const acc = document.getElementById('res-accion');
+  acc.textContent = d.accion.toUpperCase();
+  acc.className = 'res-accion ' + d.accion;
+  document.getElementById('res-hora').textContent = d.hora;
+
+  // `repetida` = el servidor detectó un doble toque y devolvió la marca que ya
+  // existía, sin crear una nueva. Hay que decirlo, o el trabajador cree que
+  // marcó dos veces.
+  let nota;
+  if (d.repetida) {
+    nota = 'YA HABÍAS MARCADO — NO SE REGISTRÓ DE NUEVO';
+  } else {
+    nota = d.con_foto ? 'REGISTRADO CON FOTO' : 'REGISTRADO SIN FOTO — CÁMARA NO DISPONIBLE';
+  }
+  document.getElementById('res-nota').textContent = nota;
+
+  mostrar('p-resultado');
+  temporizador = setTimeout(reiniciar, MS_MOSTRAR_RESULTADO);
+}
+
+function mostrarError(msg, sub) {
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-sub').textContent = sub || '';
+  mostrar('p-error');
+  temporizador = setTimeout(reiniciar, MS_MOSTRAR_ERROR);
+}
+
+// Tocar la pantalla de resultado o de error vuelve al inicio sin esperar
+['p-resultado', 'p-error'].forEach(function (id) {
+  document.getElementById(id).addEventListener('click', reiniciar);
+});
+</script>
+</body>
+</html>

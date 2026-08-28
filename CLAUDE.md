@@ -1,0 +1,223 @@
+# Gravitas Command Center — contexto para Claude
+
+Herramienta interna de **Gravitas, Planta Solar 5 MW (Guatemala)**. Repo:
+`Convertidor-formato-AMM` (el nombre viene del módulo original; hoy el proyecto
+es más amplio).
+
+## Estado: migración de local → nube (agosto 2026)
+
+El proyecto **era** un servidor Flask local (`servidor.py`) que guardaba CSVs en
+`datos/` y sincronizaba a Google Sheets. **Eso se está eliminando.** No lo
+reintroduzcas ni lo "arregles": si ves código de Flask, CSV local, `credentials.json`,
+`token.json` o Google Sheets API, es legado pendiente de borrar.
+
+### Arquitectura destino
+
+```
+Navegador (HTML estático)  →  Supabase Edge Function  →  Postgres + Storage
+       │                            (service_role)
+       └── admin.html → Supabase Auth (Google) → RLS
+```
+
+- **Hosting**: estático. Las páginas no necesitan servidor propio.
+- **Datos**: Supabase Postgres.
+- **Fotos**: Supabase Storage, bucket **privado** `fotos`.
+- **Auth**: Supabase Auth con Google, **solo para administradores**.
+  El kiosko de asistencia **no tiene login** — es deliberado.
+- **Google** se usa *únicamente* como proveedor de identidad. Nada de Sheets,
+  nada de Drive. Si hace falta exportar, se genera CSV/XLSX en el navegador.
+
+## Regla de seguridad no negociable
+
+La clave `anon` de Supabase viaja en el HTML: es pública por diseño.
+Por lo tanto:
+
+- **`anon` no puede leer ni escribir ninguna tabla.** RLS activa en todas, sin
+  políticas para `anon`.
+- La **única** puerta de entrada del kiosko es la Edge Function `marcar`, que
+  corre con `service_role`. Recibe `{ codigo, foto_base64 }`, valida el código
+  contra `trabajadores` (tabla que anon no puede leer), decide entrada/salida,
+  sube la foto y escribe el registro.
+- El código de 4 dígitos + la foto **son** la autenticación del trabajador.
+  La foto es la prueba real; el código solo identifica.
+- Nunca pongas `service_role` en un archivo del front ni en el repo.
+
+## Esquema
+
+```sql
+trabajadores (id uuid pk, codigo text unique, nombre text, activo bool, creado_en timestamptz)
+asistencia   (id uuid pk, trabajador_id uuid fk, accion text check(entrada|salida),
+              marcado_en timestamptz, foto_path text null, foto_purgada bool)
+admins       (email text pk, creado_en timestamptz)
+```
+
+RLS: `authenticated` puede SELECT solo si
+`auth.jwt()->>'email' in (select email from admins)`.
+
+## Retención
+
+Dos políticas distintas, no las confundas:
+
+- **Registros de asistencia: se conservan indefinidamente.** Son el dato de
+  nómina y pesan kilobytes.
+- **Fotos: se borran a los 10 días.** La purga corre dentro de la Edge Function
+  `marcar` en cada marca (sin cron: nada que se rompa en silencio). Al purgar se
+  pone `foto_path = null` y `foto_purgada = true`.
+
+## Decisiones tomadas
+
+| Decisión | Elección | Por qué |
+|---|---|---|
+| Entrada vs salida | **Se deduce** de la última marca del trabajador | Un toque menos. Se corrige desde el admin si marcan doble. La UI lo muestra en grande para que lo confirmen visualmente. |
+| Framework front | **HTML/CSS/JS vanilla**, sin build | Ya existe y funciona; agregar Next.js no aporta nada aquí. |
+| Zona horaria | Se guarda `timestamptz` (UTC), se muestra en `America/Guatemala` | |
+| Fotos | JPEG 640×480, calidad 0.7, ≈60 KB | 2 trabajadores × 4 marcas × 10 días ≈ 5 MB |
+
+## Riesgos conocidos y abiertos
+
+1. **Dependencia de internet.** Antes la planta funcionaba offline. Si se cae la
+   conexión no pueden marcar. Mitigación pendiente: cola en `localStorage` con
+   reintento (fase posterior).
+2. **Fuerza bruta del código de 4 dígitos** (10 000 combinaciones). Mitigación en
+   la Edge Function: registro de intentos fallidos y bloqueo temporal por IP.
+3. **La webcam exige HTTPS** (o `localhost`). Cualquier hosting que se elija debe
+   servir por HTTPS.
+4. Los proyectos Supabase gratis se pausan tras 7 días **sin actividad**. Con uso
+   diario no ocurre.
+
+## Módulos
+
+| Módulo | Archivo | Estado |
+|---|---|---|
+| Asistencia (kiosko) | `public/index.html` | **Listo.** Sirve en la raiz del sitio. |
+| Panel admin | `public/admin.html` | Por crear (login Google + ultimos 10 dias + export CSV) |
+| Convertidor AMM | `public/amm.html` | **100 % cliente, no toca backend.** Se despliega tal cual, no lo modifiques. |
+| Mantenimiento | `web/mantenimiento.html` | Congelado. Se migra después de asistencia. |
+| Launcher | `web/launcher.html` | Se rehará; hoy depende de Flask. |
+
+## Convenciones
+
+- Todo el texto de la interfaz y los nombres de campos van **en español**.
+- Se conserva el diseño existente: fondo oscuro, IBM Plex Mono/Sans, acento
+  cian `#00e5ff`. No lo reemplaces por otro sistema de diseño.
+- El kiosko corre en la PC de la planta, a pantalla completa, operado con mouse
+  o pantalla táctil: botones grandes, tipografía grande.
+
+---
+
+# Infraestructura desplegada (28 ago 2026)
+
+## Supabase — proyecto `gravitas`
+
+| | |
+|---|---|
+| Ref | `hfudsedbkmbptxidyzyy` |
+| URL | `https://hfudsedbkmbptxidyzyy.supabase.co` |
+| Región | `us-east-1` |
+| Org | `swkmkfjuizpbikxfgdsl` (cuenta personal — se puede transferir a la de trabajo) |
+| Plan | Free, $0/mes |
+
+**Clave publicable** (va en el HTML, es pública por diseño):
+`sb_publishable_gFWtRg4rBwlAPZ3dp0M3ug_nL5T6x_6`
+
+La `service_role` **no** se guarda en el repo. La Edge Function la recibe del
+entorno (`SUPABASE_SERVICE_ROLE_KEY`), inyectada automáticamente por Supabase.
+
+## Endpoint del kiosko
+
+```
+POST https://hfudsedbkmbptxidyzyy.supabase.co/functions/v1/marcar
+Content-Type: application/json
+{ "codigo": "1234", "foto_base64": "data:image/jpeg;base64,..." | null }
+```
+
+Respuestas: `200 {ok,nombre,accion,hora,con_foto}` · `400` código mal formado ·
+`401` código no reconocido · `429` demasiados intentos · `405` método.
+
+Desplegada con **`verify_jwt = false`**: es intencional. El kiosko no tiene
+login, así que la función implementa su propia autenticación (código de 4
+dígitos) y su propio freno de intentos. No la vuelvas a activar.
+
+Código fuente versionado en `supabase/functions/marcar/index.ts`. Al editarlo,
+**redesplegá** — el archivo local no se sincroniza solo.
+
+## Freno de fuerza bruta
+
+10 intentos fallidos por IP en 10 minutos → `429`. **Una marca correcta borra el
+contador de esa IP**: toda la planta sale por una sola IP y un trabajador que se
+equivoque no puede dejar bloqueado al otro. Un atacante solo envía códigos
+inválidos, así que para él el freno sigue vigente.
+
+## Esquema `private`
+
+`private.es_admin()` está fuera de `public` a propósito: en `public` quedaba
+publicada como `/rest/v1/rpc/es_admin`. **No muevas funciones auxiliares a
+`public`** — el linter de seguridad lo marca. Verificá con `get_advisors` después
+de cada cambio de DDL.
+
+## Verificado en producción
+
+- anon recibe `permission denied` en las 4 tablas (SELECT e INSERT).
+- Bucket `fotos` privado: anon obtiene 400/404 incluso con la ruta exacta.
+- Entrada/salida alterna correctamente; se reinicia a `entrada` al día siguiente.
+- Foto subida y asociada al registro.
+- Freno: 401×8 → 429; una marca válida lo limpia.
+- `get_advisors` (security): sin hallazgos.
+
+## Estructura de publicacion
+
+Cloudflare Pages publica **una carpeta**, no el repo. El directorio de salida es
+`public/` y contiene unicamente lo que debe ser publico:
+
+```
+public/
+├── index.html    kiosko de asistencia (raiz del sitio)
+├── amm.html      convertidor AMM
+├── logo.png
+└── _headers      cabeceras de seguridad de Cloudflare Pages
+```
+
+**Nunca publiques la raiz del repo.** Ahi viven `config.json`, `datos/`,
+`servidor.py` y `.venv/`. Estan en `.gitignore`, pero un despliegue por carga
+directa de la carpeta equivocada los expondria igual.
+
+`_headers` incluye `Permissions-Policy: camera=(self)`. Si lo tocas, no le quites
+el permiso de camara o el kiosko deja de poder sacar fotos.
+
+El repo de GitHub es **publico** (`albertolo0101/Convertidor-formato-AMM`). No
+metas secretos en el codigo del front. La clave publicable de Supabase si va ahi:
+es publica por diseno y no puede leer ni escribir nada.
+
+## Doble marca accidental
+
+`GRACIA_SEG = 90` en la Edge Function. Si un trabajador toca la pantalla dos
+veces, la segunda llamada **no crea un registro nuevo**: devuelve el que ya
+existe con `repetida: true`, y el kiosko muestra "YA HABIAS MARCADO". Sin esto,
+un doble toque registraba ENTRADA y SALIDA con segundos de diferencia y
+corrompia la jornada sin que nadie lo notara.
+
+## Probar en local
+
+La camara exige contexto seguro, pero `localhost` cuenta como tal — no hace
+falta desplegar para probar:
+
+```
+python -m http.server 8090 --bind 127.0.0.1 --directory <raiz del repo>
+# luego abrir http://localhost:8090/public/index.html
+```
+
+Ojo: las marcas de prueba caen en la base de produccion. Limpialas despues.
+
+## Pendientes
+
+- [x] Trabajadores cargados: `1234` Winston Pinto, `4321` David Vargas.
+      Trabajador de prueba y todas las marcas de prueba eliminados.
+      Nota: `1234` y `4321` son adivinables; la foto es la defensa real, pero
+      cambiarlos por codigos aleatorios es un UPDATE si se quiere endurecer.
+- [x] Admins cargados: `alberto@energygravitas.com` y `albertolopez2199@gmail.com`.
+- [ ] Habilitar el proveedor Google en Supabase Auth.
+- [ ] Restringir el CORS de `marcar` de `*` al dominio final.
+- [ ] Desplegar `public/` en **Cloudflare Pages** (cuenta ya creada). No Vercel:
+      su plan Hobby excluye uso comercial y esto es herramienta de empresa.
+- [ ] Considerar cambiar los codigos `1234`/`4321`: el endpoint es descubrible
+      desde el HTML desplegado y esos dos se aciertan al primer intento.
