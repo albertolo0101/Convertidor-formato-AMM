@@ -366,3 +366,130 @@ nocturno, hay que reescribir `armarJornadas`.
 La logica de emparejado esta cubierta por pruebas: extraer `armarJornadas` y
 `duracion` de `public/admin.html` y correrlas con Node. Casos verificados:
 jornada normal, almuerzo, olvido de salida, salida huerfana y dias separados.
+
+---
+
+# Modulos: insumos, registro de actividad y visitas (28 ago 2026)
+
+Tres modulos accesibles desde botones grandes en la pantalla principal del
+kiosko, debajo del teclado. **Se guardan de forma ANONIMA**: no piden el codigo
+de 4 digitos. Fue decision explicita del usuario — un toque menos por operacion.
+
+Las tres tablas llevan `trabajador_id` **nullable** justamente por eso: si algun
+dia se quiere atribuir autoria, es un cambio de interfaz y no una migracion
+sobre datos en vivo.
+
+## Edge Function `registrar`
+
+Puerta de escritura de los tres modulos. Una sola funcion porque comparten CORS,
+validacion y forma de respuesta. `verify_jwt = false`, igual que `marcar`.
+
+```
+POST /functions/v1/registrar
+{ tipo: "insumos" | "actividad" | "visita", ... }
+```
+
+Este endpoint **no autentica a nadie**. Lo puede llamar cualquiera en internet,
+asi que la validacion es la unica defensa: rechaza lo malformado y recorta lo
+excesivo (40 insumos, 200 sectores, 2000 caracteres de notas). Si le agregas
+campos, agregales tope.
+
+## El mapa de la planta
+
+192 sectores en **cuatro bloques separados** — asi es la planta, no es una
+cuadricula continua:
+
+| Cuadrante | Posicion | Columnas | Filas | Sectores |
+|---|---|---|---|---|
+| C1 | superior izquierdo | 1–4 | A–R (18) | 72 |
+| C2 | inferior izquierdo | 1–4 | A–R (18) | 72 |
+| C3 | superior derecho | 1–2 | A–L (12) | 24 |
+| C4 | inferior derecho | 1–2 | A–L (12) | 24 |
+
+Identificador: `C1-A1`, `C3-L2`.
+
+**El mapa esta definido dos veces**: en `public/index.html` para dibujarlo y en
+`supabase/functions/registrar/index.ts` para validarlo. La copia de la funcion
+es la que manda — ahi se decide que codigo es valido, nunca en el navegador. Si
+cambia la planta, hay que cambiar las dos y redesplegar la funcion.
+
+Las celdas se dibujan como rectangulos **6:1**, la forma real de una fila de
+paneles. Las medidas estan en variables CSS (`--celda-alto`, `--celda-ancho`)
+para ajustarlas en un solo lugar; el ancho debe ser 6x el alto.
+
+Tocar una letra selecciona la fila entera; tocar un numero, la columna entera.
+Sin eso, marcar 72 celdas de a una seria inusable.
+
+## Reglas del registro de actividad
+
+- **Con sectores**: exige elegir fumigacion, poda o lavado. Notas opcionales.
+- **Sin sectores**: se habilitan inversores / rondas antifuego / subestacion /
+  otros. Exigen notas **obligatorias** y levantan `requiere_revision`.
+- Son excluyentes, y la UI apaga el bloque que no corresponde en vez de dejar
+  llenar los dos y fallar al enviar.
+- Las restricciones estan tambien en la base (`sectores_completos`,
+  `especial_completo`): si algun dia otro cliente escribe ahi, no puede colar un
+  registro incompleto.
+
+## Banderas
+
+`requiere_revision` solo se levanta en actividades especiales. El administrador
+la baja con un clic y se guarda `revisado_en` y `revisado_por`: una bandera que
+desaparece sin dejar rastro no sirve como control. Lo mismo con el estado
+`pendiente`/`atendida` de las solicitudes de insumos.
+
+El panel muestra una chapa roja con la cantidad pendiente en cada pestaña,
+contada al entrar — sin eso habria que abrir cada pestaña para descubrir que
+quedo algo sin revisar.
+
+## Visitas
+
+Solo registro de llegada, sin marcar salida. Nombre e **identificacion**
+(DPI, pasaporte o licencia) son obligatorios; empresa y motivo, opcionales.
+La columna `identificacion` es nullable en la tabla para no romper
+instalaciones previas: la obligatoriedad la impone la Edge Function.
+
+---
+
+# Entornos
+
+| | Produccion | Pruebas |
+|---|---|---|
+| Proyecto Supabase | `rshrbxqflzyqkmaywcwv` | `uimftupnexooyxkegyqy` |
+| Trabajadores | Winston `2934`, David `9563` | `1111`, `2222` (ficticios) |
+| Rama | `main` | `pruebas` |
+
+`public/backend.js` elige el backend **por el dominio** donde se sirve la
+pagina, no por la rama ni por un valor a cambiar a mano:
+
+```
+gravitas-mantenimiento.alberto-175.workers.dev  ->  PRODUCCION
+cualquier otro origen (previews, localhost)     ->  PRUEBAS
+```
+
+**No lo cambies a una configuracion por rama.** Si la rama de pruebas apuntara a
+pruebas editando un valor, al mergear a `main` esa configuracion viajaria a
+produccion y el kiosko de la planta escribiria en la base equivocada sin que
+nadie lo note. Con deteccion por dominio el mismo archivo es correcto de los dos
+lados. El caso por defecto es pruebas a proposito.
+
+Cuando corre contra pruebas, la pagina muestra una cinta amarilla fija. Un
+kiosko de pruebas identico al de produccion es peligroso.
+
+## Orden para promover cambios
+
+1. Esquema y Edge Functions **primero** en produccion (`instalacion.sql` es
+   idempotente; las funciones se despliegan aparte).
+2. Recien despues, merge de la rama a `main`.
+
+Al reves, el kiosko mostraria botones que llaman a algo que todavia no existe.
+
+## Probar en local
+
+```
+python -m http.server 8090 --bind 127.0.0.1 --directory <repo>/public
+# http://localhost:8090/index.html  -> apunta a PRUEBAS, con cinta amarilla
+```
+
+El puerto **8090** esta en la lista de origenes permitidos de las tres Edge
+Functions. Si usas otro puerto, el CORS lo bloquea.
