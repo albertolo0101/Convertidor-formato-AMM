@@ -493,3 +493,69 @@ python -m http.server 8090 --bind 127.0.0.1 --directory <repo>/public
 
 El puerto **8090** esta en la lista de origenes permitidos de las tres Edge
 Functions. Si usas otro puerto, el CORS lo bloquea.
+
+---
+
+# Planificacion (24 sep 2026)
+
+Cuarto boton del kiosko. **Solo muestra, no escribe nada.** Es el mismo mapa de
+la planta, de solo lectura, pintado con un gradiente por antiguedad:
+
+- Fumigacion **rojo**, poda **verde**, lavado **azul**. El azul no es el cian
+  del acento a proposito: el cian ya significa "seleccionado" en el mapa del
+  registro de actividad.
+- Se elige una actividad a la vez. Un mismo sector puede estar fumigado ayer y
+  lavado hace ocho dias; mezclarlo todo en un color no diria nada.
+- Color pleno el dia que se trabajo, cada vez mas tenue hasta desaparecer a los
+  **10 dias corridos**. **Los fines de semana cuentan**: la maleza no deja de
+  crecer los dias que no se trabaja.
+- La caida **no es lineal** (`potencia 1.5`). Con una recta, "ayer" y
+  "anteayer" se ven casi iguales, y son justo los dias que hay que distinguir
+  para decidir por donde seguir.
+
+Al lado, una columna angosta con los ultimos 10 dias y lo que se hizo cada uno.
+Existe sobre todo por los dias en que el mapa **no** cambia —rondas antifuego,
+inversores, subestacion—: sin esa columna pareceria que no se hizo nada.
+
+## Edge Function `planificacion`
+
+Tercera puerta publica del kiosko, `verify_jwt = false` como las otras.
+
+```
+GET /functions/v1/planificacion -> {
+  ok, hoy, ventana,
+  ultimo: { fumigacion: { "C1-A1": "2026-09-22" }, poda: {...}, lavado: {...} },
+  dias:   [ { fecha, actividades: [{ actividad, sectores }], especiales: [cat] } ]
+}
+```
+
+**Solo lee.** Expone codigos de sector, fechas y cuentas. **No expone las
+notas** —son texto libre, puede haber cualquier cosa ahi—, ni autores, ni ids,
+ni las banderas de revision. Lo que salga de aca lo lee cualquiera en internet.
+
+La logica esta en `resumen.ts`, aparte de `index.ts`, para poder probarla con
+Node sin Deno ni red:
+
+```
+node supabase/functions/planificacion/resumen.prueba.mjs
+```
+
+Cubre: ventana de dias, ultima fecha por sector, actividades independientes
+sobre el mismo sector, agregado de dos reportes del mismo dia, los bordes de la
+ventana (dia 9 entra, dia 10 no), la zona horaria (03:00 UTC es el dia anterior
+en Guatemala) y registros con nulos o actividades desconocidas.
+
+**Son dos archivos al desplegar.** Si redesplegas solo `index.ts`, la funcion
+queda sin `resumen.ts` y deja de responder.
+
+## Detalles del kiosko
+
+- El mapa se dibuja con `construirMapa(contenedor, alTocar)`. Sin `alTocar`
+  queda de solo lectura: es el del modulo de planificacion.
+- Por eso `refrescarMapa()` consulta `#mapa .celda` y no `.celda` a secas —
+  si no, seleccionar sectores pintaria tambien el mapa de planificacion.
+- No uses la clase `especial` para nada nuevo: ya tiene caja y padding del
+  bloque de actividades especiales. En la columna de dias es `plan-especial`.
+- Si falla la peticion **no se borra lo que ya se mostraba**, igual que el
+  indicador de quien esta en planta. Un mapa de hace un rato sirve para
+  planificar; uno vacio no dice nada.

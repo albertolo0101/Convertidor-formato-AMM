@@ -80,8 +80,8 @@ body::before{content:'';position:fixed;inset:0;
 .tecla.vacia:hover{background:none;}
 
 /* ---------- Botones de modulo ---------- */
-.modulos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
-  width:100%;max-width:640px;margin-top:26px;}
+.modulos{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+  width:100%;max-width:840px;margin-top:26px;}
 .modulo{background:var(--surface);border:1px solid var(--border2);color:var(--bright);
   padding:22px 12px;font-family:var(--mono);font-size:13px;font-weight:600;
   letter-spacing:.06em;text-transform:uppercase;cursor:pointer;line-height:1.5;
@@ -197,6 +197,59 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 
 .aviso-camara{font-family:var(--mono);font-size:10px;color:var(--dim);
   text-align:center;margin-top:auto;padding-top:14px;line-height:1.6;flex-shrink:0;}
+
+/* ---------- Planificacion ---------- */
+/* Celdas mas chicas que en el registro de actividad: el mapa completo tiene que
+   convivir con la columna de los ultimos dias sin scroll horizontal. Se
+   mantiene la proporcion real de una fila de paneles, 6 de ancho por 1 de alto. */
+#p-planificacion{--celda-alto:12px;--celda-ancho:72px;}
+
+.plan-estado{font-family:var(--mono);font-size:10px;color:var(--dim);
+  letter-spacing:.08em;text-transform:uppercase;margin-left:auto;}
+.btn-actualizar{background:transparent;border:1px solid var(--border2);color:var(--dim);
+  padding:8px 15px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;}
+.btn-actualizar:hover{border-color:var(--accent);color:var(--accent);}
+
+.plan-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
+  width:100%;margin-bottom:14px;flex-shrink:0;}
+.plan-tab{background:var(--surface);border:1px solid var(--border2);color:var(--dim);
+  padding:15px 10px;font-family:var(--mono);font-size:13px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:color .15s,border-color .15s;}
+.plan-tab:hover{color:var(--text);}
+.plan-tab.activa{color:var(--bright);background:var(--surface2);}
+.muestra{width:12px;height:12px;flex-shrink:0;display:block;}
+
+.plan{display:grid;grid-template-columns:1fr 228px;gap:20px;
+  width:100%;align-items:start;}
+.plan .mapa{margin-bottom:0;justify-content:start;}
+/* El mapa de planificacion es solo de lectura: no se selecciona nada aca */
+.plan .celda,.plan .cab-col,.plan .cab-fila{cursor:default;}
+.plan .cab-col:hover,.plan .cab-fila:hover{color:var(--dim);}
+
+.plan-leyenda{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em;}
+.plan-leyenda b{color:var(--bright);font-weight:600;}
+.plan-escala{display:flex;align-items:center;gap:4px;}
+.plan-escala i{display:block;width:17px;height:11px;border:1px solid var(--border2);}
+
+.plan-dias{background:var(--surface);border:1px solid var(--border);padding:12px 13px;}
+.plan-dias-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.plan-dia{border-top:1px solid var(--border);padding:8px 0;}
+.plan-dia-fecha{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--dim);}
+.plan-dia.hoy .plan-dia-fecha{color:var(--accent);}
+.plan-linea{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:11px;color:var(--text);margin-top:5px;line-height:1.4;}
+.plan-linea.plan-especial{color:var(--yellow);}
+.plan-vacio{font-family:var(--mono);font-size:10px;color:var(--dim);
+  opacity:.5;margin-top:5px;}
+.plan-aviso{font-family:var(--mono);font-size:11px;color:var(--dim);
+  line-height:1.7;padding:6px 0;}
+.plan-aviso.alerta{color:var(--yellow);}
 </style>
 </head>
 <body>
@@ -226,6 +279,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
       <button class="modulo" onclick="abrirInsumos()">Solicitud<br>de insumos</button>
       <button class="modulo" onclick="abrirActividad()">Registro<br>de actividad</button>
       <button class="modulo" onclick="abrirVisitas()">Visitas</button>
+      <button class="modulo" onclick="abrirPlanificacion()">Planificación</button>
     </div>
   </div>
 
@@ -357,6 +411,26 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
     <button class="btn-enviar" onclick="enviarVisita()">Registrar visita</button>
   </div>
 
+  <!-- ============ Planificacion ============ -->
+  <div class="pantalla forma" id="p-planificacion">
+    <div class="forma-hdr">
+      <h2>Planificación</h2>
+      <span class="plan-estado" id="plan-estado"></span>
+      <button class="btn-actualizar" onclick="cargarPlanificacion()">Actualizar</button>
+      <button class="btn-volver" style="margin-left:0;" onclick="reiniciar()">Cerrar</button>
+    </div>
+
+    <div class="plan-tabs" id="plan-tabs"></div>
+
+    <div class="plan">
+      <div>
+        <div class="mapa" id="mapa-plan"></div>
+        <div class="plan-leyenda" id="plan-leyenda"></div>
+      </div>
+      <aside class="plan-dias" id="plan-dias"></aside>
+    </div>
+  </div>
+
   <div class="aviso-camara">
     La foto solo verifica quién marcó · se guarda 10 días y luego se borra sola
   </div>
@@ -365,9 +439,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 
 <script src="backend.js"></script>
 <script>
-const FUNCION_URL   = BACKEND.funcion('marcar');
-const ESTADO_URL    = BACKEND.funcion('estado');
-const REGISTRAR_URL = BACKEND.funcion('registrar');
+const FUNCION_URL      = BACKEND.funcion('marcar');
+const ESTADO_URL       = BACKEND.funcion('estado');
+const REGISTRAR_URL    = BACKEND.funcion('registrar');
+const PLANIFICACION_URL = BACKEND.funcion('planificacion');
 
 const SEGUNDOS_CUENTA      = 3;
 const MS_MOSTRAR_RESULTADO = 6000;
@@ -390,12 +465,26 @@ const ESPECIALES = [
   { id: 'otros',            nombre: 'Otros' },
 ];
 
+// Un color por actividad, como los pidio el usuario: fumigacion roja, poda
+// verde, lavado azul. El azul NO es el cian del acento a proposito: el cian ya
+// significa "seleccionado" en el mapa del registro de actividad.
+const PLAN_ACTIVIDADES = [
+  { id: 'fumigacion', nombre: 'Fumigación', rgb: '255,68,102' },
+  { id: 'poda',       nombre: 'Poda',       rgb: '0,255,136'  },
+  { id: 'lavado',     nombre: 'Lavado',     rgb: '64,132,255' },
+];
+
+const PLAN_TOTAL_SECTORES = CUADRANTES.reduce((n, q) => n + q.columnas * q.filas, 0);
+const PLAN_VENTANA_POR_DEFECTO = 10;
+
 let codigo = '';
 let stream = null;
 let bloqueado = false;
 let temporizador = null;
 let sectores = new Set();
 let enviando = false;
+let planDatos = null;
+let planActividad = 'fumigacion';
 
 /* ---------- Utilidades ---------- */
 function escHtml(t) {
@@ -766,10 +855,12 @@ async function enviarInsumos() {
   }
 }
 
-/* ================= REGISTRO DE ACTIVIDAD ================= */
-(function armarMapa() {
-  const mapa = document.getElementById('mapa');
-
+/* ================= MAPA DE LA PLANTA =================
+ * Lo usan dos modulos: el registro de actividad (se seleccionan sectores) y la
+ * planificacion (solo se miran). Si 'alTocar' viene nulo el mapa queda de solo
+ * lectura: ni las celdas ni los encabezados hacen nada.
+ */
+function construirMapa(mapa, alTocar) {
   CUADRANTES.forEach(function (q) {
     const caja = document.createElement('div');
     const lbl = document.createElement('div');
@@ -787,8 +878,10 @@ async function enviarInsumos() {
       const b = document.createElement('button');
       b.className = 'cab-col';
       b.textContent = c;
-      b.title = 'Columna ' + c + ' completa';
-      b.addEventListener('click', () => alternarGrupo(q, null, c));
+      if (alTocar) {
+        b.title = 'Columna ' + c + ' completa';
+        b.addEventListener('click', () => alternarGrupo(q, null, c));
+      }
       rejilla.appendChild(b);
     }
 
@@ -798,8 +891,10 @@ async function enviarInsumos() {
       const b = document.createElement('button');
       b.className = 'cab-fila';
       b.textContent = letra;
-      b.title = 'Fila ' + letra + ' completa';
-      b.addEventListener('click', () => alternarGrupo(q, letra, null));
+      if (alTocar) {
+        b.title = 'Fila ' + letra + ' completa';
+        b.addEventListener('click', () => alternarGrupo(q, letra, null));
+      }
       rejilla.appendChild(b);
 
       for (let c = 1; c <= q.columnas; c++) {
@@ -808,7 +903,7 @@ async function enviarInsumos() {
         celda.className = 'celda';
         celda.dataset.id = id;
         celda.title = id;
-        celda.addEventListener('click', () => alternarSector(id));
+        if (alTocar) celda.addEventListener('click', () => alTocar(id));
         rejilla.appendChild(celda);
       }
     }
@@ -816,8 +911,12 @@ async function enviarInsumos() {
     caja.appendChild(rejilla);
     mapa.appendChild(caja);
   });
-})();
+}
 
+construirMapa(document.getElementById('mapa'), alternarSector);
+construirMapa(document.getElementById('mapa-plan'), null);
+
+/* ================= REGISTRO DE ACTIVIDAD ================= */
 function alternarSector(id) {
   if (sectores.has(id)) sectores.delete(id);
   else sectores.add(id);
@@ -853,7 +952,8 @@ function limpiarSectores() {
  * los dos y despues reciba un error.
  */
 function refrescarMapa() {
-  document.querySelectorAll('.celda').forEach(function (c) {
+  // Solo el mapa del registro: el de planificacion no se selecciona.
+  document.querySelectorAll('#mapa .celda').forEach(function (c) {
     c.classList.toggle('sel', sectores.has(c.dataset.id));
   });
   document.getElementById('cuenta-sectores').textContent = sectores.size;
@@ -979,6 +1079,192 @@ async function enviarVisita() {
   });
 
   if (r.ok) mostrarOk('Visita registrada', nombre);
+}
+
+/* ================= PLANIFICACION =================
+ * El mismo mapa de la planta, pero de solo lectura y pintado con un gradiente
+ * por antiguedad: lo trabajado el dia mas reciente va al color pleno y se va
+ * apagando hasta desaparecer a los 10 dias, cuando toca volver a pasar.
+ *
+ * Los dias se cuentan CORRIDOS, sabados y domingos incluidos: la maleza no deja
+ * de crecer los dias que no se trabaja.
+ *
+ * Al lado, que se hizo cada uno de esos dias. Esa columna importa sobre todo
+ * por los dias en que el mapa NO cambia —rondas antifuego, inversores,
+ * subestacion—: sin ella pareceria que no se hizo nada.
+ */
+function planVentana() {
+  return (planDatos && planDatos.ventana) || PLAN_VENTANA_POR_DEFECTO;
+}
+
+function planColorDe(id) {
+  return PLAN_ACTIVIDADES.find(function (a) { return a.id === id; });
+}
+
+/** Dias de calendario entre dos fechas 'YYYY-MM-DD'. */
+function edadEnDias(fecha, hoy) {
+  const a = fecha.split('-').map(Number);
+  const b = hoy.split('-').map(Number);
+  return Math.round(
+    (Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000);
+}
+
+/**
+ * Color pleno el dia que se trabajo, casi invisible al borde de la ventana.
+ *
+ * La caida no es lineal a proposito: con una recta, "ayer" y "anteayer" se ven
+ * practicamente iguales, y esos son justo los dias que hay que distinguir para
+ * decidir por donde seguir. El exponente separa mas los primeros dias.
+ */
+function planOpacidad(edad, ventana) {
+  const frescura = Math.max(0, 1 - edad / ventana);
+  return 0.2 + 0.8 * Math.pow(frescura, 1.5);
+}
+
+function planEtiquetaEdad(edad) {
+  if (edad <= 0) return 'hoy';
+  if (edad === 1) return 'ayer';
+  return 'hace ' + edad + ' días';
+}
+
+function planEtiquetaFecha(fecha, indice) {
+  const t = fecha.split('-').map(Number);
+  const d = new Date(t[0], t[1] - 1, t[2]);
+  let txt = d.toLocaleDateString('es-GT',
+    { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\.$/, '');
+  if (indice === 0) txt += ' · hoy';
+  else if (indice === 1) txt += ' · ayer';
+  return txt;
+}
+
+(function armarTabsPlan() {
+  const cont = document.getElementById('plan-tabs');
+  cont.innerHTML = PLAN_ACTIVIDADES.map(function (a) {
+    return '<button class="plan-tab" data-act="' + a.id + '">' +
+           '<span class="muestra" style="background:rgb(' + a.rgb + ');"></span>' +
+           a.nombre + '</button>';
+  }).join('');
+  cont.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    planActividad = btn.dataset.act;
+    pintarPlan();
+  });
+})();
+
+function pintarPlan() {
+  const act = planColorDe(planActividad);
+  const ventana = planVentana();
+
+  document.querySelectorAll('#plan-tabs .plan-tab').forEach(function (t) {
+    const suya = t.dataset.act === planActividad;
+    t.classList.toggle('activa', suya);
+    t.style.borderColor = suya ? 'rgb(' + planColorDe(t.dataset.act).rgb + ')' : '';
+  });
+
+  const ultimo = (planDatos && planDatos.ultimo && planDatos.ultimo[planActividad]) || {};
+  const hoy = (planDatos && planDatos.hoy) || '';
+  let trabajados = 0;
+
+  document.querySelectorAll('#mapa-plan .celda').forEach(function (c) {
+    const fecha = hoy ? ultimo[c.dataset.id] : null;
+    if (!fecha) {
+      c.style.background = '';
+      c.style.borderColor = '';
+      c.title = c.dataset.id + ' · sin ' + act.nombre.toLowerCase() +
+                ' en ' + ventana + ' días';
+      return;
+    }
+    trabajados++;
+    const edad = edadEnDias(fecha, hoy);
+    const op = planOpacidad(edad, ventana);
+    c.style.background = 'rgba(' + act.rgb + ',' + op.toFixed(2) + ')';
+    c.style.borderColor = 'rgba(' + act.rgb + ',' + Math.min(1, op + 0.25).toFixed(2) + ')';
+    c.title = c.dataset.id + ' · ' + act.nombre + ' ' + planEtiquetaEdad(edad) +
+              ' (' + fecha + ')';
+  });
+
+  pintarLeyenda(act, trabajados, ventana);
+}
+
+function pintarLeyenda(act, trabajados, ventana) {
+  const pasos = [0, Math.round(ventana / 3), Math.round(2 * ventana / 3), ventana - 1];
+  const escala = pasos.map(function (edad) {
+    return '<i style="background:rgba(' + act.rgb + ',' +
+           planOpacidad(edad, ventana).toFixed(2) + ');"></i>';
+  }).join('');
+
+  document.getElementById('plan-leyenda').innerHTML =
+    '<span>' + act.nombre + '</span>' +
+    '<span class="plan-escala">hoy ' + escala + ' ' + ventana + ' días</span>' +
+    '<span><b>' + trabajados + '</b> de ' + PLAN_TOTAL_SECTORES + ' sectores en la ventana</span>' +
+    '<span>pendientes <b>' + (PLAN_TOTAL_SECTORES - trabajados) + '</b></span>';
+}
+
+function pintarDias() {
+  const cont = document.getElementById('plan-dias');
+
+  if (!planDatos) {
+    cont.innerHTML = '<div class="plan-dias-lbl">Últimos días</div>' +
+      '<div class="plan-aviso">Sin datos todavía.</div>';
+    return;
+  }
+
+  cont.innerHTML = '<div class="plan-dias-lbl">Últimos ' + planDatos.ventana + ' días</div>' +
+    planDatos.dias.map(function (d, i) {
+      const lineas = d.actividades.map(function (a) {
+        const act = planColorDe(a.actividad);
+        return '<div class="plan-linea">' +
+               '<span class="muestra" style="width:9px;height:9px;background:rgb(' + act.rgb + ');"></span>' +
+               act.nombre + ' · ' + a.sectores + (a.sectores === 1 ? ' sector' : ' sectores') +
+               '</div>';
+      }).concat(d.especiales.map(function (c) {
+        const e = ESPECIALES.find(function (x) { return x.id === c; });
+        return '<div class="plan-linea plan-especial">▪ ' + escHtml(e ? e.nombre : c) + '</div>';
+      }));
+
+      return '<div class="plan-dia' + (i === 0 ? ' hoy' : '') + '">' +
+             '<div class="plan-dia-fecha">' + escHtml(planEtiquetaFecha(d.fecha, i)) + '</div>' +
+             (lineas.length ? lineas.join('') : '<div class="plan-vacio">Sin registros</div>') +
+             '</div>';
+    }).join('');
+}
+
+async function cargarPlanificacion() {
+  const estado = document.getElementById('plan-estado');
+  estado.textContent = 'Actualizando...';
+
+  let datos;
+  try {
+    const resp = await fetch(PLANIFICACION_URL);
+    datos = await resp.json();
+  } catch (e) {
+    // Igual que el indicador de quien esta en planta: si falla la peticion no
+    // se borra lo que ya se mostraba. Un mapa de hace un rato sirve para
+    // planificar; uno vacio no dice nada.
+    estado.textContent = planDatos
+      ? 'Sin conexión — datos de la última carga'
+      : 'Sin conexión';
+    return;
+  }
+
+  if (!datos || !datos.ok) {
+    estado.textContent = 'No se pudo leer el historial';
+    return;
+  }
+
+  planDatos = datos;
+  estado.textContent = 'Al día · ' +
+    new Date().toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit', hour12: false });
+  pintarPlan();
+  pintarDias();
+}
+
+function abrirPlanificacion() {
+  mostrar('p-planificacion');
+  pintarPlan();
+  pintarDias();
+  cargarPlanificacion();
 }
 
 /* ---------- Envio comun ---------- */

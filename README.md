@@ -55,6 +55,20 @@ Si no se selecciona ningún sector, se habilitan las otras actividades
 —**inversores, rondas antifuego, subestación, otros**—, que exigen notas
 obligatorias y **levantan una bandera** que solo el administrador puede bajar.
 
+### Planificación
+
+El mismo mapa, de solo lectura, pintado con lo que ya se hizo: **rojo
+fumigación, verde poda, azul lavado**. Lo trabajado el día más reciente va al
+color pleno y se va apagando hasta desaparecer a los **10 días corridos** —los
+fines de semana cuentan, la maleza no deja de crecer el domingo—.
+
+Se mira una actividad a la vez. Al lado, una columna con los últimos 10 días y
+lo que se hizo cada uno, incluidos los días de rondas antifuego o trabajo en
+inversores, que no pintan el mapa pero sí ocuparon la jornada.
+
+Sirve para ver de un vistazo qué sectores están por vencerse y planificar el
+día siguiente. No registra nada: solo muestra.
+
 ### Visitas
 
 Registro de llegada: nombre e identificación obligatorios, empresa y motivo
@@ -140,9 +154,10 @@ public/              lo único que se publica
 supabase/
 ├── instalacion.sql  reconstruye el backend entero en un proyecto vacío
 └── functions/
-    ├── marcar/      asistencia
-    ├── estado/      quién está en planta
-    └── registrar/   insumos, actividad y visitas
+    ├── marcar/        asistencia
+    ├── estado/        quién está en planta
+    ├── registrar/     insumos, actividad y visitas
+    └── planificacion/ historial de 10 días para el mapa
 
 wrangler.jsonc       configuración del despliegue
 CLAUDE.md            contexto técnico y decisiones de diseño
