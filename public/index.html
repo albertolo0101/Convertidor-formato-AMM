@@ -232,8 +232,9 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .plan-leyenda{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
   font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em;}
 .plan-leyenda b{color:var(--bright);font-weight:600;}
-.plan-escala{display:flex;align-items:center;gap:4px;}
-.plan-escala i{display:block;width:17px;height:11px;border:1px solid var(--border2);}
+.plan-escala{display:flex;align-items:center;gap:7px;}
+.plan-rampa{display:flex;border:1px solid var(--border2);}
+.plan-rampa i{display:block;width:11px;height:11px;}
 
 .plan-dias{background:var(--surface);border:1px solid var(--border);padding:12px 13px;}
 .plan-dias-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;
@@ -465,17 +466,29 @@ const ESPECIALES = [
   { id: 'otros',            nombre: 'Otros' },
 ];
 
-// Un color por actividad, como los pidio el usuario: fumigacion roja, poda
-// verde, lavado azul. El azul NO es el cian del acento a proposito: el cian ya
+// Un color por actividad, y dentro de cada una un gradiente de dos extremos:
+// lo recien trabajado va al tono FUERTE y se va aclarando con los dias.
+//
+// Antes el gradiente era un solo color con transparencia y no se notaba la
+// diferencia entre un dia y otro: sobre el fondo oscuro, bajarle opacidad a un
+// color lo apaga sin cambiarlo de tono. Recorrer dos colores mueve tono, brillo
+// y saturacion a la vez, que es lo que el ojo si distingue.
+//
+// Ninguno de los tres arranca en el cian del acento a proposito: el cian ya
 // significa "seleccionado" en el mapa del registro de actividad.
 const PLAN_ACTIVIDADES = [
-  { id: 'fumigacion', nombre: 'Fumigación', rgb: '255,68,102' },
-  { id: 'poda',       nombre: 'Poda',       rgb: '0,255,136'  },
-  { id: 'lavado',     nombre: 'Lavado',     rgb: '64,132,255' },
+  { id: 'fumigacion', nombre: 'Fumigación',
+    reciente: [230, 25, 60],  antiguo: [255, 196, 214] },  // rojo fuerte  -> rosado claro
+  { id: 'poda',       nombre: 'Poda',
+    reciente: [16, 122, 61],  antiguo: [160, 245, 180] },  // verde oscuro -> verde claro
+  { id: 'lavado',     nombre: 'Lavado',
+    reciente: [24, 70, 190],  antiguo: [160, 230, 255] },  // azul oscuro  -> celeste claro
 ];
 
 const PLAN_TOTAL_SECTORES = CUADRANTES.reduce((n, q) => n + q.columnas * q.filas, 0);
-const PLAN_VENTANA_POR_DEFECTO = 10;
+// Solo se usa antes de la primera respuesta: la ventana real la manda la Edge
+// Function, asi que cambiarla alla no obliga a tocar el kiosko.
+const PLAN_VENTANA_POR_DEFECTO = 15;
 
 let codigo = '';
 let stream = null;
@@ -1083,8 +1096,11 @@ async function enviarVisita() {
 
 /* ================= PLANIFICACION =================
  * El mismo mapa de la planta, pero de solo lectura y pintado con un gradiente
- * por antiguedad: lo trabajado el dia mas reciente va al color pleno y se va
- * apagando hasta desaparecer a los 10 dias, cuando toca volver a pasar.
+ * por antiguedad: lo trabajado el dia mas reciente va al tono fuerte y se va
+ * aclarando hasta el borde de la ventana, cuando toca volver a pasar. Los
+ * sectores que no se tocaron en toda la ventana quedan sin color.
+ *
+ * Cuantos dias abarca lo decide la Edge Function, no esta pagina.
  *
  * Los dias se cuentan CORRIDOS, sabados y domingos incluidos: la maleza no deja
  * de crecer los dias que no se trabaja.
@@ -1110,15 +1126,27 @@ function edadEnDias(fecha, hoy) {
 }
 
 /**
- * Color pleno el dia que se trabajo, casi invisible al borde de la ventana.
+ * Color de un sector segun hace cuantos dias se le hizo la actividad: el tono
+ * fuerte el dia que se trabajo, el claro en el borde de la ventana.
  *
- * La caida no es lineal a proposito: con una recta, "ayer" y "anteayer" se ven
- * practicamente iguales, y esos son justo los dias que hay que distinguir para
- * decidir por donde seguir. El exponente separa mas los primeros dias.
+ * La mezcla se hace en LUZ LINEAL, no sobre los valores de sRGB. Mezclar sRGB
+ * directamente amontona los pasos cerca del extremo oscuro y deja el resto casi
+ * indistinguible; corrigiendo la gama los quince escalones se separan parejo,
+ * que es justamente lo que faltaba antes.
  */
-function planOpacidad(edad, ventana) {
-  const frescura = Math.max(0, 1 - edad / ventana);
-  return 0.2 + 0.8 * Math.pow(frescura, 1.5);
+function planColorCelda(act, edad, ventana) {
+  const t = ventana > 1 ? Math.min(1, Math.max(0, edad / (ventana - 1))) : 0;
+  const canal = function (i) {
+    const a = Math.pow(act.reciente[i] / 255, 2.2);
+    const b = Math.pow(act.antiguo[i] / 255, 2.2);
+    return Math.round(255 * Math.pow(a + (b - a) * t, 1 / 2.2));
+  };
+  return 'rgb(' + canal(0) + ',' + canal(1) + ',' + canal(2) + ')';
+}
+
+/** El extremo fuerte, para las muestras de las pestañas y de la columna. */
+function planColorFuerte(act) {
+  return 'rgb(' + act.reciente.join(',') + ')';
 }
 
 function planEtiquetaEdad(edad) {
@@ -1139,9 +1167,12 @@ function planEtiquetaFecha(fecha, indice) {
 
 (function armarTabsPlan() {
   const cont = document.getElementById('plan-tabs');
+  // La muestra de cada pestaña es el gradiente entero, no un cuadrito de un
+  // solo color: dice de un vistazo hacia donde aclara.
   cont.innerHTML = PLAN_ACTIVIDADES.map(function (a) {
     return '<button class="plan-tab" data-act="' + a.id + '">' +
-           '<span class="muestra" style="background:rgb(' + a.rgb + ');"></span>' +
+           '<span class="muestra" style="background:linear-gradient(90deg,' +
+           planColorFuerte(a) + ',rgb(' + a.antiguo.join(',') + '));"></span>' +
            a.nombre + '</button>';
   }).join('');
   cont.addEventListener('click', function (e) {
@@ -1159,7 +1190,7 @@ function pintarPlan() {
   document.querySelectorAll('#plan-tabs .plan-tab').forEach(function (t) {
     const suya = t.dataset.act === planActividad;
     t.classList.toggle('activa', suya);
-    t.style.borderColor = suya ? 'rgb(' + planColorDe(t.dataset.act).rgb + ')' : '';
+    t.style.borderColor = suya ? planColorFuerte(planColorDe(t.dataset.act)) : '';
   });
 
   const ultimo = (planDatos && planDatos.ultimo && planDatos.ultimo[planActividad]) || {};
@@ -1177,9 +1208,9 @@ function pintarPlan() {
     }
     trabajados++;
     const edad = edadEnDias(fecha, hoy);
-    const op = planOpacidad(edad, ventana);
-    c.style.background = 'rgba(' + act.rgb + ',' + op.toFixed(2) + ')';
-    c.style.borderColor = 'rgba(' + act.rgb + ',' + Math.min(1, op + 0.25).toFixed(2) + ')';
+    const color = planColorCelda(act, edad, ventana);
+    c.style.background = color;
+    c.style.borderColor = color;
     c.title = c.dataset.id + ' · ' + act.nombre + ' ' + planEtiquetaEdad(edad) +
               ' (' + fecha + ')';
   });
@@ -1188,11 +1219,15 @@ function pintarPlan() {
 }
 
 function pintarLeyenda(act, trabajados, ventana) {
-  const pasos = [0, Math.round(ventana / 3), Math.round(2 * ventana / 3), ventana - 1];
-  const escala = pasos.map(function (edad) {
-    return '<i style="background:rgba(' + act.rgb + ',' +
-           planOpacidad(edad, ventana).toFixed(2) + ');"></i>';
-  }).join('');
+  // Un escalon por dia: la leyenda es la escala completa, no una muestra de
+  // cuatro tonos. Asi se puede comparar una celda contra la escala y sacar
+  // cuantos dias hace que se trabajo sin pasar el mouse por encima.
+  let escala = '';
+  for (let edad = 0; edad < ventana; edad++) {
+    escala += '<i title="' + planEtiquetaEdad(edad) + '" style="background:' +
+              planColorCelda(act, edad, ventana) + ';"></i>';
+  }
+  escala = '<span class="plan-rampa">' + escala + '</span>';
 
   document.getElementById('plan-leyenda').innerHTML =
     '<span>' + act.nombre + '</span>' +
@@ -1215,7 +1250,8 @@ function pintarDias() {
       const lineas = d.actividades.map(function (a) {
         const act = planColorDe(a.actividad);
         return '<div class="plan-linea">' +
-               '<span class="muestra" style="width:9px;height:9px;background:rgb(' + act.rgb + ');"></span>' +
+               '<span class="muestra" style="width:9px;height:9px;background:' +
+               planColorFuerte(act) + ';"></span>' +
                act.nombre + ' · ' + a.sectores + (a.sectores === 1 ? ' sector' : ' sectores') +
                '</div>';
       }).concat(d.especiales.map(function (c) {

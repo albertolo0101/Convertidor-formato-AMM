@@ -501,19 +501,33 @@ Functions. Si usas otro puerto, el CORS lo bloquea.
 Cuarto boton del kiosko. **Solo muestra, no escribe nada.** Es el mismo mapa de
 la planta, de solo lectura, pintado con un gradiente por antiguedad:
 
-- Fumigacion **rojo**, poda **verde**, lavado **azul**. El azul no es el cian
-  del acento a proposito: el cian ya significa "seleccionado" en el mapa del
-  registro de actividad.
+- Cada actividad recorre **dos colores**, del tono fuerte al claro:
+
+  | Actividad | Recien trabajado | Borde de la ventana |
+  |---|---|---|
+  | Fumigacion | rojo fuerte `230,25,60` | rosado claro `255,196,214` |
+  | Poda | verde oscuro `16,122,61` | verde claro `160,245,180` |
+  | Lavado | azul oscuro `24,70,190` | celeste claro `160,230,255` |
+
 - Se elige una actividad a la vez. Un mismo sector puede estar fumigado ayer y
   lavado hace ocho dias; mezclarlo todo en un color no diria nada.
-- Color pleno el dia que se trabajo, cada vez mas tenue hasta desaparecer a los
-  **10 dias corridos**. **Los fines de semana cuentan**: la maleza no deja de
-  crecer los dias que no se trabaja.
-- La caida **no es lineal** (`potencia 1.5`). Con una recta, "ayer" y
-  "anteayer" se ven casi iguales, y son justo los dias que hay que distinguir
-  para decidir por donde seguir.
+- La ventana es de **15 dias corridos**. **Los fines de semana cuentan**: la
+  maleza no deja de crecer los dias que no se trabaja.
+- **La primera version usaba un solo color con transparencia y no servia:** sobre
+  el fondo oscuro, bajarle opacidad a un color lo apaga sin cambiarle el tono, y
+  un dia no se distinguia del siguiente. Recorrer dos colores mueve tono, brillo
+  y saturacion a la vez, que es lo que el ojo si distingue. No vuelvas al
+  gradiente por opacidad.
+- La mezcla se hace en **luz lineal** (gama 2.2), no sobre los valores de sRGB.
+  Mezclar sRGB directo amontona los pasos en el extremo oscuro y deja el resto
+  indistinguible; con la correccion, los quince escalones se separan parejo.
+- El extremo claro es mas **visible** que el fuerte sobre el fondo oscuro. Es
+  asi a pedido del usuario y no es un error: lo que esta por vencerse salta a la
+  vista, que es lo que se busca al planificar.
+- La leyenda dibuja **un escalon por dia**, no cuatro muestras: se puede comparar
+  una celda contra la rampa y sacar la antiguedad sin pasar el mouse.
 
-Al lado, una columna angosta con los ultimos 10 dias y lo que se hizo cada uno.
+Al lado, una columna angosta con los ultimos 15 dias y lo que se hizo cada uno.
 Existe sobre todo por los dias en que el mapa **no** cambia —rondas antifuego,
 inversores, subestacion—: sin esa columna pareceria que no se hizo nada.
 
@@ -523,7 +537,7 @@ Tercera puerta publica del kiosko, `verify_jwt = false` como las otras.
 
 ```
 GET /functions/v1/planificacion -> {
-  ok, hoy, ventana,
+  ok, hoy, ventana,          // ventana = 15 dias
   ultimo: { fumigacion: { "C1-A1": "2026-09-22" }, poda: {...}, lavado: {...} },
   dias:   [ { fecha, actividades: [{ actividad, sectores }], especiales: [cat] } ]
 }
@@ -539,6 +553,10 @@ Node sin Deno ni red:
 ```
 node supabase/functions/planificacion/resumen.prueba.mjs
 ```
+
+`VENTANA_DIAS` esta en `resumen.ts` y **manda**: el kiosko la lee de la
+respuesta y arma con ella el gradiente y la columna. Para cambiar cuantos dias
+se miran, se toca ahi y se redespliega — el front no se toca.
 
 Cubre: ventana de dias, ultima fecha por sector, actividades independientes
 sobre el mismo sector, agregado de dos reportes del mismo dia, los bordes de la

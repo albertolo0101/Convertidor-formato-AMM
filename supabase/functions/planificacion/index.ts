@@ -1,6 +1,6 @@
 // Gravitas Mantenimiento — Edge Function `planificacion`
 //
-// Devuelve el historial de los ultimos 10 dias de trabajo sobre los sectores,
+// Devuelve el historial de los ultimos 15 dias de trabajo sobre los sectores,
 // para que el kiosko pinte el mapa con un gradiente por antiguedad y los
 // operarios y el coordinador puedan planificar los dias siguientes.
 //
@@ -20,7 +20,7 @@
 // GET -> 200 {
 //   ok: true,
 //   hoy: "2026-09-24",
-//   ventana: 10,
+//   ventana: 15,
 //   ultimo: { fumigacion: { "C1-A1": "2026-09-22" }, poda: {...}, lavado: {...} },
 //   dias: [ { fecha, actividades: [{ actividad, sectores }], especiales: [cat] } ]
 // }
@@ -65,8 +65,8 @@ Deno.serve(async (req: Request) => {
   );
 
   // Un dia de margen sobre la ventana: el corte se hace despues por fecha de
-  // Guatemala, y un filtro en UTC justo de 10 dias podria dejar afuera trabajo
-  // de la madrugada del dia mas antiguo.
+  // Guatemala, y un filtro en UTC justo de la ventana podria dejar afuera
+  // trabajo de la madrugada del dia mas antiguo.
   const desde = new Date(Date.now() - (VENTANA_DIAS + 1) * 86400_000).toISOString();
 
   const { data: registros, error } = await db

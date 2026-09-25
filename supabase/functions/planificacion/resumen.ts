@@ -7,10 +7,13 @@
 
 export const TZ = "America/Guatemala";
 
-// Diez dias CORRIDOS, fines de semana incluidos: la maleza no deja de crecer
+// Quince dias CORRIDOS, fines de semana incluidos: la maleza no deja de crecer
 // los dias que no se trabaja, asi que la antiguedad se cuenta en dias de
 // calendario y no en dias laborales.
-export const VENTANA_DIAS = 10;
+//
+// Este numero manda: el kiosko lo lee de la respuesta y arma el gradiente y la
+// columna de dias con el. No hace falta tocar el front para cambiarlo.
+export const VENTANA_DIAS = 15;
 
 export const ACTIVIDADES = ["fumigacion", "poda", "lavado"];
 

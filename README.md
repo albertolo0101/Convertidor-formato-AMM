@@ -57,12 +57,20 @@ obligatorias y **levantan una bandera** que solo el administrador puede bajar.
 
 ### Planificación
 
-El mismo mapa, de solo lectura, pintado con lo que ya se hizo: **rojo
-fumigación, verde poda, azul lavado**. Lo trabajado el día más reciente va al
-color pleno y se va apagando hasta desaparecer a los **10 días corridos** —los
-fines de semana cuentan, la maleza no deja de crecer el domingo—.
+El mismo mapa, de solo lectura, pintado con lo que ya se hizo. Cada actividad
+tiene su gradiente, del tono fuerte —recién trabajado— al claro:
 
-Se mira una actividad a la vez. Al lado, una columna con los últimos 10 días y
+| Actividad | Recién trabajado | 15 días atrás |
+|---|---|---|
+| Fumigación | rojo fuerte | rosado claro |
+| Poda | verde oscuro | verde claro |
+| Lavado | azul oscuro | celeste claro |
+
+La ventana es de **15 días corridos**: los fines de semana cuentan, la maleza no
+deja de crecer el domingo. Los sectores que no se tocaron en esos 15 días quedan
+sin color.
+
+Se mira una actividad a la vez. Al lado, una columna con los últimos 15 días y
 lo que se hizo cada uno, incluidos los días de rondas antifuego o trabajo en
 inversores, que no pintan el mapa pero sí ocuparon la jornada.
 
@@ -157,7 +165,7 @@ supabase/
     ├── marcar/        asistencia
     ├── estado/        quién está en planta
     ├── registrar/     insumos, actividad y visitas
-    └── planificacion/ historial de 10 días para el mapa
+    └── planificacion/ historial de 15 días para el mapa
 
 wrangler.jsonc       configuración del despliegue
 CLAUDE.md            contexto técnico y decisiones de diseño

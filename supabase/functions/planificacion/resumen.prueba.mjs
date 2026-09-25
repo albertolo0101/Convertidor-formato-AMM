@@ -35,9 +35,11 @@ console.log('\nventana de dias');
   comparar('hoy es la fecha de Guatemala', r.hoy, '2026-09-24');
   comparar('devuelve ' + VENTANA_DIAS + ' dias', r.dias.length, VENTANA_DIAS);
   comparar('del mas reciente al mas antiguo',
-    [r.dias[0].fecha, r.dias[9].fecha], ['2026-09-24', '2026-09-15']);
+    [r.dias[0].fecha, r.dias[VENTANA_DIAS - 1].fecha], ['2026-09-24', '2026-09-10']);
   comparar('los fines de semana cuentan como dias',
-    r.dias.map(function (d) { return d.fecha; }).includes('2026-09-19'), true);
+    ['2026-09-19', '2026-09-20', '2026-09-12', '2026-09-13'].every(function (f) {
+      return r.dias.some(function (d) { return d.fecha === f; });
+    }), true);
   comparar('sin registros no hay nada pintado', r.ultimo,
     { fumigacion: {}, poda: {}, lavado: {} });
 }
@@ -84,12 +86,12 @@ console.log('\nagregado por dia');
 console.log('\nbordes de la ventana');
 {
   const r = resumir([
-    sectores(9, 'lavado', ['C4-A1']),
-    sectores(10, 'lavado', ['C4-A2']),
+    sectores(VENTANA_DIAS - 1, 'lavado', ['C4-A1']),
+    sectores(VENTANA_DIAS, 'lavado', ['C4-A2']),
     sectores(40, 'lavado', ['C4-B1']),
   ], AHORA);
-  comparar('el dia 9 entra', r.ultimo.lavado['C4-A1'], '2026-09-15');
-  comparar('el dia 10 ya quedo afuera', 'C4-A2' in r.ultimo.lavado, false);
+  comparar('el ultimo dia de la ventana entra', r.ultimo.lavado['C4-A1'], '2026-09-10');
+  comparar('el dia siguiente ya quedo afuera', 'C4-A2' in r.ultimo.lavado, false);
   comparar('lo mas viejo se ignora', 'C4-B1' in r.ultimo.lavado, false);
 }
 
