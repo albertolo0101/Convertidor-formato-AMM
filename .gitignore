@@ -13,3 +13,4 @@ node_modules/
 
 # Configuracion local de herramientas
 .claude/
+supabase/.temp/

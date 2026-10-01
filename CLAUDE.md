@@ -148,6 +148,30 @@ dígitos) y su propio freno de intentos. No la vuelvas a activar.
 Código fuente versionado en `supabase/functions/marcar/index.ts`. Al editarlo,
 **redesplegá** — el archivo local no se sincroniza solo.
 
+## Cómo desplegar una Edge Function
+
+El conector de Supabase no siempre está disponible. El camino que no depende de
+él es el CLI, desde la raíz del repo:
+
+```
+npx supabase login                    # una vez, abre el navegador
+npx supabase functions deploy <nombre> --project-ref rshrbxqflzyqkmaywcwv --no-verify-jwt
+```
+
+Hay que entrar con la **cuenta de trabajo** (`alberto@energygravitas.com`): con
+la personal el CLI no lista el proyecto y parece un problema de permisos.
+
+`--no-verify-jwt` es obligatorio en `marcar`, `estado`, `registrar` y
+`planificacion`: son públicas a propósito. Sin esa bandera el despliegue las
+deja pidiendo JWT y el kiosko deja de funcionar.
+
+No hace falta Docker (avisa que no está corriendo y sube igual). El CLI sube
+todos los archivos que la función importa: `registrar` sube `index.ts` y
+`mapa.ts`, y no sube la prueba `.mjs` porque nadie la importa.
+
+El CLI deja un `supabase/.temp/` con datos del proyecto. Está en `.gitignore`:
+no es secreto, pero no tiene por qué versionarse.
+
 ## Freno de fuerza bruta
 
 10 intentos fallidos por IP en 10 minutos → `429`. **Una marca correcta borra el
@@ -271,14 +295,8 @@ que actualizar `ORIGENES_PERMITIDOS` **y redesplegar la funcion**.
 - [ ] **Fase 5:** borrar Flask, Sheets, CSV y las paginas legadas de `web/`.
 - [ ] Acceso directo en modo kiosko en la PC de la planta.
 - [ ] Cola offline en `localStorage`: hoy, sin internet, no se puede marcar.
-- [ ] **Desplegar `registrar` con las areas del mapa** (`index.ts` + `mapa.ts`).
-      Hasta que este desplegada, la rama `areas-mapa` **no debe ir a `main`**:
-      el kiosko ofreceria rondas y drenajes que la version vieja de la funcion
-      descarta en silencio, y un reporte mixto se guardaria solo con los
-      paneles. El conector de Supabase quedo desautorizado y en esta maquina no
-      hay CLI ni `SUPABASE_ACCESS_TOKEN`, asi que el despliegue quedo pendiente
-      de reautorizar el conector o de pegar los dos archivos en el panel de
-      Supabase.
+- [x] `registrar` desplegada con las areas del mapa (`index.ts` + `mapa.ts`),
+      1 oct 2026, y verificada desde afuera con `curl`.
 
 
 ---
