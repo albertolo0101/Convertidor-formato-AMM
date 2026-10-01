@@ -492,12 +492,14 @@ sesenta mil nodos en la pagina. Despues solo se muestra o se esconde.
 
 - **Con sectores o areas**: exige elegir fumigacion, poda o lavado. Notas
   opcionales. El lavado no admite areas.
-- **Las rondas antifuego siguen estando tambien como actividad especial.** No se
-  quito la casilla: hoy hay dos formas de reportar lo mismo —marcar las rondas
-  en el mapa, o marcar la casilla "Rondas antifuego" sin sectores—, y la segunda
-  no pinta el mapa de planificacion. Si se decide que la casilla sobra, se saca
-  de `ESPECIALES` en el kiosko; la categoria se deja en la base porque hay
-  registros viejos con ella.
+- **La casilla "Rondas antifuego" se quito** (1 oct 2026). Las rondas se marcan
+  en el mapa y asi pintan la planificacion; tener las dos vias era reportar lo
+  mismo de dos formas y una de las dos no se veia. Quedan **inversores,
+  subestacion y otros**.
+  La categoria `rondas_antifuego` **sigue viva en la base, en el panel y en la
+  Edge Function**: hay registros viejos con ella, y un kiosko con la pagina
+  vieja en cache podria tener algo encolado sin enviar. Lo unico que se saco es
+  la casilla del kiosko.
 - **Sin sectores**: se habilitan inversores / rondas antifuego / subestacion /
   otros. Exigen notas **obligatorias** y levantan `requiere_revision`.
 - Son excluyentes, y la UI apaga el bloque que no corresponde en vez de dejar

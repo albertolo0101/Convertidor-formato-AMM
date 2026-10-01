@@ -169,7 +169,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .btn-limpiar:hover{border-color:var(--red);color:var(--red);}
 
 /* ---------- Actividades especiales ---------- */
-.especiales{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
+.especiales{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
 .especial{display:flex;align-items:center;gap:11px;background:var(--bg);
   border:1px solid var(--border2);padding:13px;cursor:pointer;
   font-family:var(--mono);font-size:13px;color:var(--text);transition:border-color .15s;}
@@ -355,7 +355,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
     </div>
 
     <div class="bloque" id="bloque-especiales">
-      <div class="bloque-lbl">O bien, otra actividad — sin sectores</div>
+      <div class="bloque-lbl">O bien, otra actividad — sin nada marcado en el mapa</div>
       <div class="especiales" id="especiales"></div>
       <div class="aviso" id="aviso-especiales">
         Si marcás alguna de estas, las notas son obligatorias y el reporte queda
@@ -444,11 +444,16 @@ const MS_REFRESCO_DENTRO   = 60000;
 // La copia que manda sigue siendo la de la Edge Function 'registrar': ahi se
 // valida de verdad. Si cambia acá, tiene que cambiar allá.
 
+// 'rondas_antifuego' salio de esta lista: las rondas ahora se marcan en el
+// mapa, con su fumigacion o su poda, y asi pintan la planificacion. Tener las
+// dos vias era reportar lo mismo de dos formas, y una de las dos no se veia.
+// La categoria sigue existiendo en la base y en el panel: hay registros viejos
+// con ella, y la Edge Function la sigue aceptando por si un kiosko con la
+// pagina vieja en cache tenia algo encolado sin enviar.
 const ESPECIALES = [
-  { id: 'inversores',       nombre: 'Inversores' },
-  { id: 'rondas_antifuego', nombre: 'Rondas antifuego' },
-  { id: 'subestacion',      nombre: 'Subestación' },
-  { id: 'otros',            nombre: 'Otros' },
+  { id: 'inversores',  nombre: 'Inversores' },
+  { id: 'subestacion', nombre: 'Subestación' },
+  { id: 'otros',       nombre: 'Otros' },
 ];
 
 // Un color por actividad, y dentro de cada una un gradiente de dos extremos:
@@ -1007,7 +1012,7 @@ async function enviarActividad() {
   }
   if (!listaSectores.length && !notas) {
     mostrarError('Faltan las notas',
-      'En inversores, rondas antifuego, subestación y otros, las notas son obligatorias.');
+      'En inversores, subestación y otros, las notas son obligatorias.');
     return;
   }
 
@@ -1086,8 +1091,8 @@ async function enviarVisita() {
  * de crecer los dias que no se trabaja.
  *
  * Al lado, que se hizo cada uno de esos dias. Esa columna importa sobre todo
- * por los dias en que el mapa NO cambia —rondas antifuego, inversores,
- * subestacion—: sin ella pareceria que no se hizo nada.
+ * por los dias en que el mapa NO cambia —inversores, subestacion, otros—: sin
+ * ella pareceria que no se hizo nada.
  */
 function planVentana() {
   return (planDatos && planDatos.ventana) || PLAN_VENTANA_POR_DEFECTO;

@@ -61,9 +61,10 @@ se apagan en el mapa; si hay un área marcada, el lavado deja de ser elegible.
 Se seleccionan los sectores trabajados y se elige **fumigación, poda o lavado**.
 Tocar una letra selecciona la fila entera; tocar un número, la columna.
 
-Si no se selecciona ningún sector, se habilitan las otras actividades
-—**inversores, rondas antifuego, subestación, otros**—, que exigen notas
-obligatorias y **levantan una bandera** que solo el administrador puede bajar.
+Si no se selecciona nada en el mapa, se habilitan las otras actividades
+—**inversores, subestación, otros**—, que exigen notas obligatorias y
+**levantan una bandera** que solo el administrador puede bajar. Las rondas
+antifuego ya no están acá: se marcan en el mapa como cualquier otra área.
 
 ### Planificación
 
