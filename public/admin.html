@@ -134,6 +134,17 @@ button,select,input{font-family:var(--mono);}
 
 .sectores-lista{font-family:var(--mono);font-size:11px;color:var(--text);
   line-height:1.9;word-break:break-word;}
+.sectores-lista b{color:var(--dim);font-weight:400;letter-spacing:.1em;
+  text-transform:uppercase;font-size:9px;}
+
+/* El mapa del reporte. Se dibuja solo cuando lo piden: trescientas tarjetas
+   con doscientas celdas cada una serian sesenta mil nodos en la pagina. */
+.mapa-reg{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+  overflow-x:auto;}
+.mapa-reg .mapa-planta{--mp-alto:9px;--mp-ancho:54px;--mp-lbl:16px;--mp-franja:13px;
+  justify-content:start;}
+.mapa-reg .mp-area{font-size:7px;letter-spacing:.04em;}
+.mapa-reg .mp-cab-col,.mapa-reg .mp-cab-fila{font-size:8px;}
 .notas-txt{font-family:var(--mono);font-size:12px;color:var(--text);line-height:1.7;
   background:var(--bg);border-left:2px solid var(--border2);padding:10px 13px;margin-top:11px;
   white-space:pre-wrap;}
@@ -202,9 +213,10 @@ button,select,input{font-family:var(--mono);}
       <div class="resumen" id="resumen-actividad"></div>
       <div id="lista-actividad"></div>
       <div class="nota">
-        Los reportes marcados en amarillo son actividades fuera de los paneles
-        &mdash; inversores, rondas antifuego, subestación u otros. Quedan
-        señalados hasta que los marques como revisados.
+        Cada reporte de campo se puede ver en el mapa de la planta, con lo
+        trabajado resaltado. Los marcados en amarillo son actividades fuera del
+        mapa &mdash; inversores, subestación u otros; quedan señalados hasta que
+        los marques como revisados.
       </div>
     </div>
 
@@ -263,6 +275,7 @@ button,select,input{font-family:var(--mono);}
 </div>
 
 <script src="backend.js"></script>
+<script src="mapa.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // Clave publicable: es publica por diseño. Con la RLS cerrada no puede leer ni
@@ -623,6 +636,8 @@ function fechaHoraGT(iso) {
 }
 
 /* ================= ACTIVIDAD ================= */
+let ACTIVIDAD_CARGADA = {};
+
 const NOMBRE_CATEGORIA = {
   inversores: 'Inversores',
   rondas_antifuego: 'Rondas antifuego',
@@ -646,6 +661,10 @@ async function cargarActividad() {
   }
 
   const filas = data || [];
+  // Se guardan para que "Ver en el mapa" no tenga que volver a consultar.
+  ACTIVIDAD_CARGADA = {};
+  filas.forEach(function (f) { ACTIVIDAD_CARGADA[f.id] = f; });
+
   const pendientes = filas.filter(f => f.requiere_revision && !f.revisado_en).length;
 
   actualizarChapa('chapa-actividad', pendientes);
@@ -664,10 +683,23 @@ async function cargarActividad() {
 
     let titulo, cuerpo;
     if (f.tipo === 'sectores') {
-      const n = (f.sectores || []).length;
+      const sel = f.sectores || [];
+      const areas = sel.filter(id => MAPA.esArea(id));
+      const paneles = sel.filter(id => !MAPA.esArea(id));
+
       titulo = '<span class="etiqueta actividad">' + esc(f.actividad) + '</span>' +
-               '<span class="tarjeta-tit">' + n + (n === 1 ? ' sector' : ' sectores') + '</span>';
-      cuerpo = '<div class="sectores-lista">' + esc((f.sectores || []).join('  ·  ')) + '</div>';
+               '<span class="tarjeta-tit">' +
+                 paneles.length + (paneles.length === 1 ? ' panel' : ' paneles') +
+                 (areas.length ? ' · ' + areas.length + (areas.length === 1 ? ' área' : ' áreas') : '') +
+               '</span>';
+
+      cuerpo = '<div class="sectores-lista">' +
+        (areas.length
+          ? '<b>Áreas</b> ' + esc(areas.map(id => MAPA.area(id).etiqueta).join('  ·  ')) + '<br>'
+          : '') +
+        (paneles.length ? '<b>Paneles</b> ' + esc(paneles.join('  ·  ')) : '') +
+        '</div>' +
+        '<div class="mapa-reg" id="mapa-reg-' + f.id + '" style="display:none;"></div>';
     } else {
       const cats = (f.categorias || []).map(c => NOMBRE_CATEGORIA[c] || c).join(' · ');
       titulo = '<span class="etiqueta revision">Fuera de paneles</span>' +
@@ -676,6 +708,10 @@ async function cargarActividad() {
     }
 
     let acciones = '';
+    if (f.tipo === 'sectores') {
+      acciones += '<button class="btn" id="btn-mapa-' + f.id +
+                  '" onclick="verEnMapa(&quot;' + f.id + '&quot;)">Ver en el mapa</button>';
+    }
     if (sinRevisar) {
       acciones = '<button class="btn primario" onclick="marcarRevisado(\'' + f.id + '\')">Marcar revisado</button>';
     } else if (f.revisado_en) {
@@ -692,6 +728,35 @@ async function cargarActividad() {
       (f.notas ? '<div class="notas-txt">' + esc(f.notas) + '</div>' : '') +
       '</div>';
   }).join('');
+}
+
+/**
+ * Dibuja el mapa de la planta dentro de la tarjeta, con lo trabajado resaltado.
+ *
+ * Se dibuja la primera vez que lo piden y despues solo se muestra o se
+ * esconde: trescientos mapas armados de entrada harian la pagina inusable.
+ */
+function verEnMapa(id) {
+  const caja = document.getElementById('mapa-reg-' + id);
+  const boton = document.getElementById('btn-mapa-' + id);
+
+  if (caja.dataset.dibujado) {
+    const visible = caja.style.display !== 'none';
+    caja.style.display = visible ? 'none' : 'block';
+    boton.textContent = visible ? 'Ver en el mapa' : 'Ocultar el mapa';
+    return;
+  }
+
+  MAPA.construir(caja, {});
+  caja.dataset.dibujado = '1';
+
+  const sel = new Set((ACTIVIDAD_CARGADA[id] || {}).sectores || []);
+  caja.querySelectorAll('[data-id]').forEach(function (c) {
+    c.classList.toggle('sel', sel.has(c.dataset.id));
+  });
+
+  caja.style.display = 'block';
+  boton.textContent = 'Ocultar el mapa';
 }
 
 /**

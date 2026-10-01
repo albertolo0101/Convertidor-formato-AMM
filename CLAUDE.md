@@ -271,6 +271,14 @@ que actualizar `ORIGENES_PERMITIDOS` **y redesplegar la funcion**.
 - [ ] **Fase 5:** borrar Flask, Sheets, CSV y las paginas legadas de `web/`.
 - [ ] Acceso directo en modo kiosko en la PC de la planta.
 - [ ] Cola offline en `localStorage`: hoy, sin internet, no se puede marcar.
+- [ ] **Desplegar `registrar` con las areas del mapa** (`index.ts` + `mapa.ts`).
+      Hasta que este desplegada, la rama `areas-mapa` **no debe ir a `main`**:
+      el kiosko ofreceria rondas y drenajes que la version vieja de la funcion
+      descarta en silencio, y un reporte mixto se guardaria solo con los
+      paneles. El conector de Supabase quedo desautorizado y en esta maquina no
+      hay CLI ni `SUPABASE_ACCESS_TOKEN`, asi que el despliegue quedo pendiente
+      de reautorizar el conector o de pegar los dos archivos en el panel de
+      Supabase.
 
 
 ---
@@ -396,8 +404,12 @@ campos, agregales tope.
 
 ## El mapa de la planta
 
-192 sectores en **cuatro bloques separados** — asi es la planta, no es una
-cuadricula continua:
+Dos clases de pieza: **192 sectores de paneles** y **17 areas** que no son
+paneles.
+
+### Paneles
+
+Cuatro bloques separados — asi es la planta, no es una cuadricula continua:
 
 | Cuadrante | Posicion | Columnas | Filas | Sectores |
 |---|---|---|---|---|
@@ -406,23 +418,86 @@ cuadricula continua:
 | C3 | superior derecho | 1–2 | A–L (12) | 24 |
 | C4 | inferior derecho | 1–2 | A–L (12) | 24 |
 
-Identificador: `C1-A1`, `C3-L2`.
+Identificador: `C1-A1`, `C3-L2`. **Estos codigos no se tocan**: hay registros
+historicos escritos con ellos.
 
-**El mapa esta definido dos veces**: en `public/index.html` para dibujarlo y en
-`supabase/functions/registrar/index.ts` para validarlo. La copia de la funcion
-es la que manda — ahi se decide que codigo es valido, nunca en el navegador. Si
-cambia la planta, hay que cambiar las dos y redesplegar la funcion.
+### Areas (1 oct 2026)
+
+| Codigo | Que es |
+|---|---|
+| `1N` `1S` `1E` `1O` | rondas antifuego del cuadrante 1 |
+| `2N` `2S` `2O` | rondas antifuego del cuadrante 2 |
+| `2E` | ronda del cuadrante 2 **y** drenaje pluvial **DR3** — es la misma franja |
+| `3N` `3S` `3E` | rondas antifuego del cuadrante 3 |
+| `4S` `4E` | rondas antifuego del cuadrante 4 |
+| `DR1` `DR2` | drenajes pluviales, entre los cuadrantes 1-2 y 3-4 |
+| `4N` | subestacion y bodega — ocupa todo el norte del cuadrante 4 |
+| `CALLE` | calle principal, cruza la planta de norte a sur entre las dos mitades |
+
+Los cuadrantes 3 y 4 **no tienen oeste**: de ese lado va la calle. El cuadrante
+4 no tiene ronda norte propia: ahi esta la subestacion.
+
+**Las areas no son paneles: no se lavan.** Solo admiten **fumigacion y poda**.
+La regla esta en los dos lados y en los dos sentidos: con lavado elegido las
+areas se apagan y no se pueden tocar, y con un area marcada la opcion de lavado
+se deshabilita. La Edge Function rechaza la combinacion igual, por si llega de
+otro lado.
+
+Paneles y areas viajan en **la misma columna `sectores`**. Separarlos en dos
+campos obligaria a migrar los registros que ya existen, y para el reporte son
+todos "lo que se trabajo".
+
+### Donde vive
+
+| Copia | Para que |
+|---|---|
+| `public/mapa.js` | lo dibuja: kiosko (actividad y planificacion) y panel de admin |
+| `supabase/functions/registrar/mapa.ts` | **manda**: ahi se decide que codigo es valido |
+
+Son dos copias y es a proposito —el navegador no puede ser la autoridad de lo
+que acepta un endpoint publico—, pero la desincronizacion es facil de cometer y
+dificil de notar: el kiosko ofreceria un area que el servidor descarta en
+silencio. Por eso `mapa.prueba.mjs` **compara las dos copias**:
+
+```
+node supabase/functions/registrar/mapa.prueba.mjs
+```
+
+Si cambia la planta hay que cambiar las dos y **redesplegar la funcion** —son
+dos archivos, `index.ts` y `mapa.ts`.
+
+`public/mapa.js` inyecta su propio CSS, asi que agregar el mapa a una pagina
+nueva es cargarlo y llamar a `MAPA.construir(contenedor, { alTocar })`. Sin
+`alTocar` el mapa queda de solo lectura.
+
+### Dibujo
 
 Las celdas se dibujan como rectangulos **6:1**, la forma real de una fila de
-paneles. Las medidas estan en variables CSS (`--celda-alto`, `--celda-ancho`)
-para ajustarlas en un solo lugar; el ancho debe ser 6x el alto.
+paneles. Las medidas son variables CSS (`--mp-alto`, `--mp-ancho`, `--mp-lbl`,
+`--mp-franja`) que cada pagina ajusta en el contenedor; el ancho debe ser 6x el
+alto. Las areas llevan borde punteado cuando son drenaje o calle: distingue lo
+que no es panel sin gastar un color en eso.
 
 Tocar una letra selecciona la fila entera; tocar un numero, la columna entera.
 Sin eso, marcar 72 celdas de a una seria inusable.
 
+### En el panel de admin
+
+Cada reporte de campo trae un boton **Ver en el mapa** que dibuja la planta con
+lo trabajado resaltado. El mapa se arma **la primera vez que lo piden**, no al
+cargar la lista: trescientas tarjetas con doscientas celdas cada una serian
+sesenta mil nodos en la pagina. Despues solo se muestra o se esconde.
+
 ## Reglas del registro de actividad
 
-- **Con sectores**: exige elegir fumigacion, poda o lavado. Notas opcionales.
+- **Con sectores o areas**: exige elegir fumigacion, poda o lavado. Notas
+  opcionales. El lavado no admite areas.
+- **Las rondas antifuego siguen estando tambien como actividad especial.** No se
+  quito la casilla: hoy hay dos formas de reportar lo mismo —marcar las rondas
+  en el mapa, o marcar la casilla "Rondas antifuego" sin sectores—, y la segunda
+  no pinta el mapa de planificacion. Si se decide que la casilla sobra, se saca
+  de `ESPECIALES` en el kiosko; la categoria se deja en la base porque hay
+  registros viejos con ella.
 - **Sin sectores**: se habilitan inversores / rondas antifuego / subestacion /
   otros. Exigen notas **obligatorias** y levantan `requiere_revision`.
 - Son excluyentes, y la UI apaga el bloque que no corresponde en vez de dejar

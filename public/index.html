@@ -153,26 +153,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .btn-enviar:disabled{opacity:.4;cursor:not-allowed;}
 
 /* ---------- Mapa de la planta ---------- */
-.mapa{display:grid;grid-template-columns:auto auto;gap:22px;
-  justify-content:center;margin-bottom:6px;}
-.cuadrante-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--accent);margin-bottom:7px;text-align:center;}
-/* Los sectores son filas largas de paneles, no cuadrados: se dibujan con la
-   proporcion real, 6 de ancho por 1 de alto. Un solo lugar donde ajustarlo. */
-:root{ --celda-alto:14px; --celda-ancho:84px; --lbl-ancho:22px; }
-
-.rejilla{display:grid;gap:3px;}
-.celda{width:var(--celda-ancho);height:var(--celda-alto);
-  background:var(--surface2);border:1px solid var(--border2);
-  cursor:pointer;padding:0;transition:background .08s,border-color .08s;}
-.celda:hover{border-color:var(--accent);}
-.celda.sel{background:var(--accent);border-color:var(--accent);}
-.cab-col{width:var(--celda-ancho);height:17px;font-family:var(--mono);font-size:10px;
-  color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
-.cab-fila{width:var(--lbl-ancho);height:var(--celda-alto);font-family:var(--mono);
-  font-size:10px;color:var(--dim);background:transparent;border:none;cursor:pointer;padding:0;}
-.cab-col:hover,.cab-fila:hover{color:var(--accent);}
-.esquina{width:var(--lbl-ancho);height:17px;}
+/* El mapa lo dibuja y lo estiliza `mapa.js`, que inyecta su propio CSS: lo
+   comparten el registro de actividad, la planificacion y el panel de admin.
+   Aca solo quedan las medidas y lo que rodea al mapa.
+   Los sectores son filas largas de paneles, no cuadrados: el ancho debe ser 6x
+   el alto, la proporcion real de una fila. */
+#mapa{--mp-alto:14px; --mp-ancho:84px;}
 
 .mapa-pie{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
   font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:12px;}
@@ -202,7 +188,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 /* Celdas mas chicas que en el registro de actividad: el mapa completo tiene que
    convivir con la columna de los ultimos dias sin scroll horizontal. Se
    mantiene la proporcion real de una fila de paneles, 6 de ancho por 1 de alto. */
-#p-planificacion{--celda-alto:12px;--celda-ancho:72px;}
+#mapa-plan{--mp-alto:11px;--mp-ancho:66px;--mp-franja:16px;}
 
 .plan-estado{font-family:var(--mono);font-size:10px;color:var(--dim);
   letter-spacing:.08em;text-transform:uppercase;margin-left:auto;}
@@ -224,10 +210,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 
 .plan{display:grid;grid-template-columns:1fr 228px;gap:20px;
   width:100%;align-items:start;}
-.plan .mapa{margin-bottom:0;justify-content:start;}
-/* El mapa de planificacion es solo de lectura: no se selecciona nada aca */
-.plan .celda,.plan .cab-col,.plan .cab-fila{cursor:default;}
-.plan .cab-col:hover,.plan .cab-fila:hover{color:var(--dim);}
+.plan .mapa-planta{justify-content:start;}
 
 .plan-leyenda{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
   font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.04em;}
@@ -346,17 +329,23 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
     </div>
 
     <div class="bloque">
-      <div class="bloque-lbl">Sectores trabajados — tocá para seleccionar</div>
-      <div class="mapa" id="mapa"></div>
+      <div class="bloque-lbl">Sectores y áreas trabajados — tocá para seleccionar</div>
+      <div id="mapa"></div>
+      <div class="mapa-pie mp-leyenda" id="mapa-leyenda"></div>
       <div class="mapa-pie">
-        <span>Seleccionados: <b id="cuenta-sectores">0</b></span>
+        <span>Paneles: <b id="cuenta-sectores">0</b></span>
+        <span>Áreas: <b id="cuenta-areas">0</b></span>
         <span>Tocá una letra o un número para toda la fila o columna</span>
         <button class="btn-limpiar" onclick="limpiarSectores()">Limpiar</button>
+      </div>
+      <div class="aviso" id="aviso-areas">
+        Las rondas antifuego, los drenajes y la calle solo se fumigan o se podan;
+        con lavado elegido quedan apagadas.
       </div>
     </div>
 
     <div class="bloque" id="bloque-actividad">
-      <div class="bloque-lbl">Actividad realizada en esos sectores</div>
+      <div class="bloque-lbl">Actividad realizada en lo seleccionado</div>
       <select id="actividad">
         <option value="">Elegir...</option>
         <option value="fumigacion">Fumigación</option>
@@ -425,7 +414,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 
     <div class="plan">
       <div>
-        <div class="mapa" id="mapa-plan"></div>
+        <div id="mapa-plan"></div>
         <div class="plan-leyenda" id="plan-leyenda"></div>
       </div>
       <aside class="plan-dias" id="plan-dias"></aside>
@@ -439,6 +428,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 </div>
 
 <script src="backend.js"></script>
+<script src="mapa.js"></script>
 <script>
 const FUNCION_URL      = BACKEND.funcion('marcar');
 const ESTADO_URL       = BACKEND.funcion('estado');
@@ -450,14 +440,9 @@ const MS_MOSTRAR_RESULTADO = 6000;
 const MS_MOSTRAR_ERROR     = 5000;
 const MS_REFRESCO_DENTRO   = 60000;
 
-// El mapa debe coincidir con el de la Edge Function 'registrar', que es donde
-// se valida de verdad. Si cambia acá, tiene que cambiar allá.
-const CUADRANTES = [
-  { id: 'C1', nombre: 'Cuadrante 1', columnas: 4, filas: 18 },
-  { id: 'C3', nombre: 'Cuadrante 3', columnas: 2, filas: 12 },
-  { id: 'C2', nombre: 'Cuadrante 2', columnas: 4, filas: 18 },
-  { id: 'C4', nombre: 'Cuadrante 4', columnas: 2, filas: 12 },
-];
+// El mapa vive en mapa.js, que lo comparte con el panel de administracion.
+// La copia que manda sigue siendo la de la Edge Function 'registrar': ahi se
+// valida de verdad. Si cambia acá, tiene que cambiar allá.
 
 const ESPECIALES = [
   { id: 'inversores',       nombre: 'Inversores' },
@@ -485,7 +470,8 @@ const PLAN_ACTIVIDADES = [
     reciente: [24, 70, 190],  antiguo: [160, 230, 255] },  // azul oscuro  -> celeste claro
 ];
 
-const PLAN_TOTAL_SECTORES = CUADRANTES.reduce((n, q) => n + q.columnas * q.filas, 0);
+const PLAN_TOTAL_SECTORES = MAPA.TOTAL_SECTORES;
+const PLAN_TOTAL_AREAS = MAPA.TOTAL_AREAS;
 // Solo se usa antes de la primera respuesta: la ventana real la manda la Edge
 // Function, asi que cambiarla alla no obliga a tocar el kiosko.
 const PLAN_VENTANA_POR_DEFECTO = 15;
@@ -869,68 +855,22 @@ async function enviarInsumos() {
 }
 
 /* ================= MAPA DE LA PLANTA =================
- * Lo usan dos modulos: el registro de actividad (se seleccionan sectores) y la
- * planificacion (solo se miran). Si 'alTocar' viene nulo el mapa queda de solo
- * lectura: ni las celdas ni los encabezados hacen nada.
+ * Lo dibuja mapa.js. Aca solo se decide que pasa al tocarlo: el registro de
+ * actividad selecciona, la planificacion solo mira.
  */
-function construirMapa(mapa, alTocar) {
-  CUADRANTES.forEach(function (q) {
-    const caja = document.createElement('div');
-    const lbl = document.createElement('div');
-    lbl.className = 'cuadrante-lbl';
-    lbl.textContent = q.nombre;
-    caja.appendChild(lbl);
-
-    const rejilla = document.createElement('div');
-    rejilla.className = 'rejilla';
-    rejilla.style.gridTemplateColumns = 'auto repeat(' + q.columnas + ', auto)';
-
-    // Fila de encabezado: numeros de columna, que seleccionan la columna entera
-    rejilla.appendChild(Object.assign(document.createElement('div'), { className: 'esquina' }));
-    for (let c = 1; c <= q.columnas; c++) {
-      const b = document.createElement('button');
-      b.className = 'cab-col';
-      b.textContent = c;
-      if (alTocar) {
-        b.title = 'Columna ' + c + ' completa';
-        b.addEventListener('click', () => alternarGrupo(q, null, c));
-      }
-      rejilla.appendChild(b);
-    }
-
-    for (let f = 0; f < q.filas; f++) {
-      const letra = String.fromCharCode(65 + f);
-
-      const b = document.createElement('button');
-      b.className = 'cab-fila';
-      b.textContent = letra;
-      if (alTocar) {
-        b.title = 'Fila ' + letra + ' completa';
-        b.addEventListener('click', () => alternarGrupo(q, letra, null));
-      }
-      rejilla.appendChild(b);
-
-      for (let c = 1; c <= q.columnas; c++) {
-        const id = q.id + '-' + letra + c;
-        const celda = document.createElement('button');
-        celda.className = 'celda';
-        celda.dataset.id = id;
-        celda.title = id;
-        if (alTocar) celda.addEventListener('click', () => alTocar(id));
-        rejilla.appendChild(celda);
-      }
-    }
-
-    caja.appendChild(rejilla);
-    mapa.appendChild(caja);
-  });
-}
-
-construirMapa(document.getElementById('mapa'), alternarSector);
-construirMapa(document.getElementById('mapa-plan'), null);
+MAPA.construir(document.getElementById('mapa'), {
+  alTocar: alternarSector,
+  alTocarGrupo: alternarGrupo,
+});
+MAPA.construir(document.getElementById('mapa-plan'), {});
+document.getElementById('mapa-leyenda').innerHTML = MAPA.LEYENDA;
 
 /* ================= REGISTRO DE ACTIVIDAD ================= */
 function alternarSector(id) {
+  // Con lavado elegido las areas no se pueden tocar: no se lava una ronda
+  // antifuego ni un drenaje. La celda ya se muestra apagada.
+  if (MAPA.esArea(id) && !areasHabilitadas()) return;
+
   if (sectores.has(id)) sectores.delete(id);
   else sectores.add(id);
   refrescarMapa();
@@ -938,15 +878,7 @@ function alternarSector(id) {
 
 /** Selecciona o deselecciona una fila o una columna entera de un cuadrante. */
 function alternarGrupo(q, letra, columna) {
-  const ids = [];
-  for (let f = 0; f < q.filas; f++) {
-    const l = String.fromCharCode(65 + f);
-    if (letra && l !== letra) continue;
-    for (let c = 1; c <= q.columnas; c++) {
-      if (columna && c !== columna) continue;
-      ids.push(q.id + '-' + l + c);
-    }
-  }
+  const ids = MAPA.idsDeGrupo(q, letra, columna);
   // Si ya estaban todos seleccionados, el toque los quita
   const todos = ids.every(id => sectores.has(id));
   ids.forEach(id => todos ? sectores.delete(id) : sectores.add(id));
@@ -958,18 +890,52 @@ function limpiarSectores() {
   refrescarMapa();
 }
 
+/** Las areas solo admiten fumigacion y poda; con lavado quedan fuera de juego. */
+function areasHabilitadas() {
+  const actividad = document.getElementById('actividad').value;
+  return actividad === '' || MAPA.permiteAreas(actividad);
+}
+
+function areasSeleccionadas() {
+  return [...sectores].filter(id => MAPA.esArea(id));
+}
+
 /**
- * Sectores y actividades especiales son excluyentes: si hay sectores marcados,
- * el reporte es de paneles; si no hay ninguno, se habilitan las especiales.
+ * Sectores y actividades especiales son excluyentes: si hay algo marcado en el
+ * mapa, el reporte es de campo; si no hay nada, se habilitan las especiales.
  * La UI lo refleja apagando el bloque que no corresponde, para que nadie llene
  * los dos y despues reciba un error.
+ *
+ * Lo mismo con el lavado y las areas, en los dos sentidos: si hay un area
+ * marcada se deshabilita la opcion de lavado, y si el lavado esta elegido las
+ * areas no se pueden marcar. Asi nadie arma un reporte imposible y se entera
+ * recien al enviarlo.
  */
 function refrescarMapa() {
+  const habilitadas = areasHabilitadas();
+
   // Solo el mapa del registro: el de planificacion no se selecciona.
-  document.querySelectorAll('#mapa .celda').forEach(function (c) {
+  document.querySelectorAll('#mapa [data-id]').forEach(function (c) {
     c.classList.toggle('sel', sectores.has(c.dataset.id));
+    if (c.dataset.tipo !== 'panel') c.classList.toggle('no-aplica', !habilitadas);
   });
-  document.getElementById('cuenta-sectores').textContent = sectores.size;
+
+  const areas = areasSeleccionadas().length;
+  document.getElementById('cuenta-sectores').textContent = sectores.size - areas;
+  document.getElementById('cuenta-areas').textContent = areas;
+
+  // Si hay un area marcada, lavado deja de ser elegible
+  const opcionLavado = document.querySelector('#actividad option[value="lavado"]');
+  opcionLavado.disabled = areas > 0;
+  opcionLavado.textContent = areas > 0 ? 'Lavado — no aplica a áreas' : 'Lavado';
+
+  const aviso = document.getElementById('aviso-areas');
+  aviso.classList.toggle('alerta', areas > 0 || !habilitadas);
+  aviso.textContent = !habilitadas
+    ? 'Con lavado elegido no se pueden marcar rondas antifuego, drenajes ni la calle.'
+    : (areas > 0
+        ? 'Hay áreas marcadas: el reporte solo puede ser fumigación o poda.'
+        : 'Las rondas antifuego, los drenajes y la calle solo se fumigan o se podan.');
 
   const hayEspeciales = categoriasMarcadas().length > 0;
 
@@ -981,6 +947,8 @@ function refrescarMapa() {
   document.getElementById('notas-obligatorias').style.display =
     hayEspeciales ? 'inline' : 'none';
 }
+
+document.getElementById('actividad').addEventListener('change', refrescarMapa);
 
 (function armarEspeciales() {
   const cont = document.getElementById('especiales');
@@ -1022,12 +990,19 @@ async function enviarActividad() {
 
   if (!listaSectores.length && !categorias.length) {
     mostrarError('Falta seleccionar',
-      'Marcá los sectores en el mapa, o elegí una de las otras actividades.');
+      'Marcá los sectores o las áreas en el mapa, o elegí una de las otras actividades.');
     return;
   }
   if (listaSectores.length && !actividad) {
     mostrarError('Falta la actividad',
       'Elegí si fue fumigación, poda o lavado.');
+    return;
+  }
+  // La UI ya lo impide en los dos sentidos; esto es el ultimo freno antes de
+  // mandar un reporte que la Edge Function va a rechazar igual.
+  if (areasSeleccionadas().length && !MAPA.permiteAreas(actividad)) {
+    mostrarError('El lavado no aplica',
+      'Las rondas antifuego, los drenajes y la calle solo se fumigan o se podan.');
     return;
   }
   if (!listaSectores.length && !notas) {
@@ -1051,7 +1026,12 @@ async function enviarActividad() {
     if (r.datos.bandera) {
       mostrarOk('Reporte ingresado', 'Queda señalado para revisión del administrador.');
     } else {
-      mostrarOk('Reporte ingresado', r.datos.sectores + ' sectores · ' + actividad);
+      // La funcion ya devuelve el desglose; se calcula igual por si contesta
+      // una version anterior todavia sin desplegar.
+      const areas = r.datos.areas !== undefined ? r.datos.areas : areasSeleccionadas().length;
+      const paneles = r.datos.paneles !== undefined ? r.datos.paneles : r.datos.sectores - areas;
+      mostrarOk('Reporte ingresado',
+        paneles + ' paneles' + (areas ? ' · ' + areas + ' áreas' : '') + ' · ' + actividad);
     }
   }
 }
@@ -1195,30 +1175,44 @@ function pintarPlan() {
 
   const ultimo = (planDatos && planDatos.ultimo && planDatos.ultimo[planActividad]) || {};
   const hoy = (planDatos && planDatos.hoy) || '';
-  let trabajados = 0;
+  // Las areas no se lavan: en la pestaña de lavado se apagan en vez de
+  // quedarse en blanco como si estuvieran pendientes de lavar.
+  const aplicaAreas = MAPA.permiteAreas(planActividad);
+  let paneles = 0, areas = 0;
 
-  document.querySelectorAll('#mapa-plan .celda').forEach(function (c) {
-    const fecha = hoy ? ultimo[c.dataset.id] : null;
+  document.querySelectorAll('#mapa-plan [data-id]').forEach(function (c) {
+    const esArea = c.dataset.tipo !== 'panel';
+    c.classList.toggle('no-aplica', esArea && !aplicaAreas);
+
+    const fecha = (hoy && (aplicaAreas || !esArea)) ? ultimo[c.dataset.id] : null;
     if (!fecha) {
       c.style.background = '';
       c.style.borderColor = '';
-      c.title = c.dataset.id + ' · sin ' + act.nombre.toLowerCase() +
-                ' en ' + ventana + ' días';
+      c.style.color = '';
+      c.title = esArea
+        ? MAPA.nombre(c.dataset.id) +
+          (aplicaAreas ? ' · sin ' + act.nombre.toLowerCase() + ' en ' + ventana + ' días'
+                       : ' · no aplica a ' + act.nombre.toLowerCase())
+        : c.dataset.id + ' · sin ' + act.nombre.toLowerCase() + ' en ' + ventana + ' días';
       return;
     }
-    trabajados++;
+    if (esArea) areas++; else paneles++;
+
     const edad = edadEnDias(fecha, hoy);
     const color = planColorCelda(act, edad, ventana);
     c.style.background = color;
     c.style.borderColor = color;
-    c.title = c.dataset.id + ' · ' + act.nombre + ' ' + planEtiquetaEdad(edad) +
-              ' (' + fecha + ')';
+    // En un area el color es el fondo del texto: con el tono fuerte hay que
+    // aclarar la letra o no se lee.
+    if (esArea) c.style.color = edad <= Math.floor(ventana / 3) ? '#ffffff' : '#04121a';
+    c.title = (esArea ? MAPA.nombre(c.dataset.id) : c.dataset.id) +
+              ' · ' + act.nombre + ' ' + planEtiquetaEdad(edad) + ' (' + fecha + ')';
   });
 
-  pintarLeyenda(act, trabajados, ventana);
+  pintarLeyenda(act, paneles, areas, aplicaAreas, ventana);
 }
 
-function pintarLeyenda(act, trabajados, ventana) {
+function pintarLeyenda(act, trabajados, areas, aplicaAreas, ventana) {
   // Un escalon por dia: la leyenda es la escala completa, no una muestra de
   // cuatro tonos. Asi se puede comparar una celda contra la escala y sacar
   // cuantos dias hace que se trabajo sin pasar el mouse por encima.
@@ -1232,8 +1226,12 @@ function pintarLeyenda(act, trabajados, ventana) {
   document.getElementById('plan-leyenda').innerHTML =
     '<span>' + act.nombre + '</span>' +
     '<span class="plan-escala">hoy ' + escala + ' ' + ventana + ' días</span>' +
-    '<span><b>' + trabajados + '</b> de ' + PLAN_TOTAL_SECTORES + ' sectores en la ventana</span>' +
-    '<span>pendientes <b>' + (PLAN_TOTAL_SECTORES - trabajados) + '</b></span>';
+    '<span>paneles <b>' + trabajados + '</b> de ' + PLAN_TOTAL_SECTORES +
+      ' · pendientes <b>' + (PLAN_TOTAL_SECTORES - trabajados) + '</b></span>' +
+    (aplicaAreas
+      ? '<span>áreas <b>' + areas + '</b> de ' + PLAN_TOTAL_AREAS +
+        ' · pendientes <b>' + (PLAN_TOTAL_AREAS - areas) + '</b></span>'
+      : '<span>las áreas no se lavan</span>');
 }
 
 function pintarDias() {

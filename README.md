@@ -39,7 +39,7 @@ atendidas.
 
 ### Registro de actividad
 
-Mapa de la planta con **192 sectores** en cuatro bloques:
+Mapa de la planta con **192 sectores de paneles** en cuatro bloques:
 
 | Cuadrante | Posición | Columnas | Filas |
 |---|---|---|---|
@@ -47,6 +47,16 @@ Mapa de la planta con **192 sectores** en cuatro bloques:
 | C2 | inferior izquierdo | 1–4 | A–R (18) |
 | C3 | superior derecho | 1–2 | A–L (12) |
 | C4 | inferior derecho | 1–2 | A–L (12) |
+
+Alrededor de los paneles hay **17 áreas** que también se seleccionan: las
+**rondas antifuego** de cada cuadrante (`1N`, `1S`, `1E`, `1O`, `2N`…), los
+**drenajes pluviales** (`DR1` entre los cuadrantes 1 y 2, `DR2` entre el 3 y el
+4, y `DR3`, que es la misma franja que la ronda `2E`), la **subestación y
+bodega** (`4N`) y la **calle principal**, que cruza la planta entre las dos
+mitades.
+
+**Las áreas no se lavan**: solo admiten fumigación y poda. Si se elige lavado,
+se apagan en el mapa; si hay un área marcada, el lavado deja de ser elegible.
 
 Se seleccionan los sectores trabajados y se elige **fumigación, poda o lavado**.
 Tocar una letra selecciona la fila entera; tocar un número, la columna.
@@ -68,7 +78,8 @@ tiene su gradiente, del tono fuerte —recién trabajado— al claro:
 
 La ventana es de **15 días corridos**: los fines de semana cuentan, la maleza no
 deja de crecer el domingo. Los sectores que no se tocaron en esos 15 días quedan
-sin color.
+sin color. Las rondas antifuego, los drenajes y la calle se pintan igual que los
+paneles, salvo en lavado, donde no aplican.
 
 Se mira una actividad a la vez. Al lado, una columna con los últimos 15 días y
 lo que se hizo cada uno, incluidos los días de rondas antifuego o trabajo en
@@ -156,6 +167,7 @@ public/              lo único que se publica
 ├── admin.html       panel de administrador
 ├── amm.html         convertidor AMM
 ├── backend.js       elige el backend según el dominio
+├── mapa.js          el mapa de la planta, compartido por el kiosko y el panel
 ├── logo.png
 └── _headers         cabeceras de seguridad
 
@@ -164,7 +176,7 @@ supabase/
 └── functions/
     ├── marcar/        asistencia
     ├── estado/        quién está en planta
-    ├── registrar/     insumos, actividad y visitas
+    ├── registrar/     insumos, actividad y visitas · valida el mapa
     └── planificacion/ historial de 15 días para el mapa
 
 wrangler.jsonc       configuración del despliegue

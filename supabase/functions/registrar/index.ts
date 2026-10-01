@@ -17,6 +17,9 @@
 //  -> 400 { ok: false, error }
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  ACTIVIDADES, CATEGORIAS, esArea, filtrarSeleccion, validarActividad,
+} from "./mapa.ts";
 
 const ORIGENES_PERMITIDOS = [
   "https://gravitas-mantenimiento.alberto-175.workers.dev",
@@ -29,32 +32,11 @@ const SUFIJO_VISTAS_PREVIAS = ".alberto-175.workers.dev";
 const MAX_ITEMS = 40;
 const MAX_TEXTO = 500;
 const MAX_NOTAS = 2000;
-const MAX_SECTORES = 200;
+// 192 paneles + 17 areas. El tope solo frena un POST absurdo desde afuera;
+// seleccionar la planta entera es legitimo.
+const MAX_SELECCION = 250;
 
-const ACTIVIDADES = ["fumigacion", "poda", "lavado"];
-const CATEGORIAS = ["inversores", "rondas_antifuego", "subestacion", "otros"];
-
-// El mapa de la planta. Debe coincidir con el que dibuja el kiosko: aca es
-// donde se decide que codigo de sector es valido, no en el navegador.
-const CUADRANTES: Record<string, { columnas: number; filas: number }> = {
-  C1: { columnas: 4, filas: 18 },   // superior izquierdo,  A–R
-  C2: { columnas: 4, filas: 18 },   // inferior izquierdo,  A–R
-  C3: { columnas: 2, filas: 12 },   // superior derecho,    A–L
-  C4: { columnas: 2, filas: 12 },   // inferior derecho,    A–L
-};
-
-function sectoresValidos(): Set<string> {
-  const validos = new Set<string>();
-  for (const [cuadrante, { columnas, filas }] of Object.entries(CUADRANTES)) {
-    for (let f = 0; f < filas; f++) {
-      const letra = String.fromCharCode(65 + f);
-      for (let c = 1; c <= columnas; c++) validos.add(`${cuadrante}-${letra}${c}`);
-    }
-  }
-  return validos;
-}
-
-const SECTORES_VALIDOS = sectoresValidos();
+// El mapa y sus reglas viven en ./mapa.ts, que ademas se prueba con Node.
 
 function cabecerasCors(origen: string | null): Record<string, string> {
   const cabeceras: Record<string, string> = {
@@ -126,10 +108,10 @@ Deno.serve(async (req: Request) => {
 
   // -------------------------------------------------------------- actividad
   if (tipo === "actividad") {
-    const sectores = (Array.isArray(body.sectores) ? body.sectores : [])
-      .slice(0, MAX_SECTORES)
-      .map((s: unknown) => texto(s, 12))
-      .filter((s: string) => SECTORES_VALIDOS.has(s));
+    // Paneles y areas viajan en la misma lista: para el reporte son todos
+    // "lo que se trabajo", y separarlos en dos campos obligaria a migrar los
+    // registros que ya existen.
+    const sectores = filtrarSeleccion(body.sectores, MAX_SELECCION);
 
     const categorias = (Array.isArray(body.categorias) ? body.categorias : [])
       .map((c: unknown) => texto(c, 30))
@@ -137,12 +119,11 @@ Deno.serve(async (req: Request) => {
 
     const notas = texto(body.notas, MAX_NOTAS);
 
-    // Trabajo sobre paneles
+    // Trabajo de campo: paneles, areas o las dos cosas
     if (sectores.length) {
       const actividad = texto(body.actividad, 30);
-      if (!ACTIVIDADES.includes(actividad)) {
-        return json({ ok: false, error: "Elegí la actividad realizada" }, 400);
-      }
+      const problema = validarActividad(sectores, actividad);
+      if (problema) return json({ ok: false, error: problema }, 400);
 
       const { data, error } = await db
         .from("registros_actividad")
@@ -157,13 +138,18 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (error) return json({ ok: false, error: "No se pudo guardar el reporte" }, 500);
-      return json({ ok: true, id: data.id, sectores: sectores.length, bandera: false });
+      const areas = sectores.filter(esArea).length;
+      return json({
+        ok: true, id: data.id,
+        sectores: sectores.length, areas, paneles: sectores.length - areas,
+        bandera: false,
+      });
     }
 
     // Actividad especial: sin sectores. Exige categoria Y notas, y levanta la
     // bandera que solo el administrador puede bajar.
     if (!categorias.length) {
-      return json({ ok: false, error: "Seleccioná sectores en el mapa o marcá una actividad" }, 400);
+      return json({ ok: false, error: "Seleccioná sectores o áreas en el mapa, o marcá una actividad" }, 400);
     }
     if (!notas) {
       return json({ ok: false, error: "Las notas son obligatorias en estas actividades" }, 400);
