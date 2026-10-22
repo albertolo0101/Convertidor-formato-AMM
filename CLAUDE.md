@@ -672,3 +672,19 @@ queda sin `resumen.ts` y deja de responder.
 - Si falla la peticion **no se borra lo que ya se mostraba**, igual que el
   indicador de quien esta en planta. Un mapa de hace un rato sirve para
   planificar; uno vacio no dice nada.
+
+# Panel admin: anular reportes y pestaña Revision (22 oct 2026)
+
+**Anular** un reporte de actividad no lo borra: llena `anulado_en`,
+`anulado_por` y `anulado_motivo`. La Edge Function `planificacion` filtra
+`anulado_en is null`, asi que deja de pintar el mapa del kiosko; en el panel
+queda tachado y se puede **restaurar**. Toda consulta nueva sobre
+`registros_actividad` que alimente un mapa o un conteo tiene que excluir los
+anulados.
+
+**Revision** es la contraparte de la planificacion para el administrador: rango
+de fechas libre, una actividad a la vez, solo el **tono fuerte** de cada rubro
+(sin gradiente por antiguedad) y **ashurado** en los sectores que aparecen en
+mas de un reporte del rango. Lee la tabla directo con la sesion de admin (RLS);
+no usa ninguna Edge Function. Cuenta reportes, no dias: dos reportes del mismo
+sector el mismo dia salen ashurados, y eso sirve para detectar duplicados.

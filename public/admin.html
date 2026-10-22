@@ -153,6 +153,30 @@ button,select,input{font-family:var(--mono);}
   background:var(--bg);border-left:2px solid var(--border2);padding:10px 13px;margin-top:11px;
   white-space:pre-wrap;}
 
+/* ---------- Revisión ---------- */
+.rev-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
+.rev-tab{background:var(--surface);border:1px solid var(--border2);color:var(--dim);
+  padding:12px 10px;font-size:12px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;gap:10px;}
+.rev-tab:hover{color:var(--text);}
+.rev-tab.activa{color:var(--bright);background:var(--surface2);}
+.rev-tab .muestra{width:12px;height:12px;display:block;}
+.rev{display:grid;grid-template-columns:1fr 220px;gap:20px;align-items:start;}
+.rev-mapa{overflow-x:auto;}
+.rev-mapa .mapa-planta{--mp-alto:11px;--mp-ancho:66px;--mp-franja:16px;justify-content:start;}
+.rev-leyenda{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:14px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);}
+.rev-leyenda b{color:var(--bright);font-weight:600;}
+.rev-leyenda i{display:inline-block;width:26px;height:11px;margin-right:6px;vertical-align:middle;}
+.rev-dias{background:var(--surface);border:1px solid var(--border);padding:12px 13px;
+  font-family:var(--mono);font-size:10px;max-height:560px;overflow-y:auto;}
+.rev-dias-lbl{letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.rev-dia{border-top:1px solid var(--border);padding:7px 0;color:var(--text);
+  display:flex;justify-content:space-between;gap:8px;}
+.rev-dia span:first-child{color:var(--dim);}
+@media (max-width:900px){.rev{grid-template-columns:1fr;}}
+
 /* ---------- Visor de foto ---------- */
 .visor{position:fixed;inset:0;background:rgba(3,5,10,.94);z-index:20;
   display:none;align-items:center;justify-content:center;padding:28px;cursor:zoom-out;}
@@ -208,6 +232,7 @@ button,select,input{font-family:var(--mono);}
     <div class="pestanas">
       <button class="pestana activa" data-seccion="asistencia">Asistencia</button>
       <button class="pestana" data-seccion="actividad">Actividad<span class="chapa" id="chapa-actividad" style="display:none;"></span></button>
+      <button class="pestana" data-seccion="revision">Revisión</button>
       <button class="pestana" data-seccion="insumos">Insumos<span class="chapa" id="chapa-insumos" style="display:none;"></span></button>
       <button class="pestana" data-seccion="visitas">Visitas</button>
     </div>
@@ -224,6 +249,37 @@ button,select,input{font-family:var(--mono);}
         Un reporte cargado por error (por ejemplo, un sector equivocado) se
         <b>anula</b>: deja de contar en el mapa de planificación, pero queda
         aquí tachado con quién lo anuló y por qué. Se puede restaurar.
+      </div>
+    </div>
+
+    <!-- ============ Revisión ============ -->
+    <div class="seccion" id="s-revision">
+      <div class="controles">
+        <div class="campo">
+          <label for="rev-desde">Desde</label>
+          <input type="date" id="rev-desde"/>
+        </div>
+        <div class="campo">
+          <label for="rev-hasta">Hasta</label>
+          <input type="date" id="rev-hasta"/>
+        </div>
+        <div class="acciones">
+          <button class="btn primario" onclick="cargarRevision()">Consultar</button>
+        </div>
+      </div>
+      <div class="rev-tabs" id="rev-tabs"></div>
+      <div class="rev">
+        <div>
+          <div class="rev-mapa"><div id="mapa-rev"></div></div>
+          <div class="rev-leyenda" id="rev-leyenda"></div>
+        </div>
+        <aside class="rev-dias" id="rev-dias"></aside>
+      </div>
+      <div class="nota">
+        Muestra lo trabajado en el rango elegido, sin importar hace cuánto: el
+        color indica que se hizo al menos una vez; el ashurado, que se hizo más
+        de una vez. Los reportes anulados no cuentan. Pasá el mouse por un
+        sector para ver las fechas.
       </div>
     </div>
 
@@ -622,6 +678,7 @@ function exportarCsv() {
 /* ================= PESTAÑAS ================= */
 const CARGADORES = {
   actividad: cargarActividad,
+  revision: abrirRevision,
   insumos: cargarInsumos,
   visitas: cargarVisitas,
 };
@@ -827,6 +884,7 @@ async function anularActividad(id) {
     alert('No se pudo anular: ' + error.message);
     return;
   }
+  revRegistros = null;   // la revision vuelve a consultar al abrirse
   cargarActividad();
 }
 
@@ -842,7 +900,153 @@ async function restaurarActividad(id) {
     alert('No se pudo restaurar: ' + error.message);
     return;
   }
+  revRegistros = null;
   cargarActividad();
+}
+
+/* ================= REVISIÓN ================= */
+// Mismos colores que la planificación del kiosko, pero aquí solo el tono
+// fuerte: no hay gradiente por antigüedad, la pregunta es "¿se hizo en el
+// rango?" y "¿se hizo más de una vez?".
+const REV_ACTIVIDADES = [
+  { id: 'fumigacion', nombre: 'Fumigación', color: [230, 25, 60] },
+  { id: 'poda',       nombre: 'Poda',       color: [16, 122, 61] },
+  { id: 'lavado',     nombre: 'Lavado',     color: [24, 70, 190] },
+];
+
+let revActividad = 'fumigacion';
+let revRegistros = null;   // reportes del rango, de las tres actividades
+
+function revColor(act) { return 'rgb(' + act.color.join(',') + ')'; }
+
+/** Franjas oscuras sobre el color: se ve igual de bien en paneles y en áreas. */
+function revAshurado(act) {
+  return 'repeating-linear-gradient(135deg,' + revColor(act) + ' 0 3px,' +
+         'rgba(4,8,16,.75) 3px 5px)';
+}
+
+function abrirRevision() {
+  const mapa = document.getElementById('mapa-rev');
+  if (!mapa.dataset.dibujado) {
+    MAPA.construir(mapa, {});
+    mapa.dataset.dibujado = '1';
+
+    document.getElementById('rev-hasta').value = fechaGT(new Date());
+    document.getElementById('rev-desde').value =
+      fechaGT(new Date(Date.now() - 14 * 86400000));
+
+    const tabs = document.getElementById('rev-tabs');
+    tabs.innerHTML = REV_ACTIVIDADES.map(a =>
+      '<button class="rev-tab" data-act="' + a.id + '">' +
+      '<span class="muestra" style="background:' + revColor(a) + ';"></span>' +
+      a.nombre + '</button>').join('');
+    tabs.addEventListener('click', function (e) {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      revActividad = b.dataset.act;
+      pintarRevision();
+    });
+  }
+  if (!revRegistros) cargarRevision();
+  else pintarRevision();
+}
+
+async function cargarRevision() {
+  const desde = document.getElementById('rev-desde').value;
+  const hasta = document.getElementById('rev-hasta').value;
+  const dias = document.getElementById('rev-dias');
+
+  if (!desde || !hasta || desde > hasta) {
+    dias.innerHTML = '<div class="rev-dias-lbl">Elegí un rango válido.</div>';
+    return;
+  }
+  dias.innerHTML = '<div class="rev-dias-lbl">Consultando...</div>';
+
+  // Se traen las tres actividades de una vez: cambiar de pestaña no consulta.
+  const { data, error } = await db
+    .from('registros_actividad')
+    .select('creado_en, actividad, sectores')
+    .eq('tipo', 'sectores')
+    .is('anulado_en', null)
+    .gte('creado_en', desde + 'T00:00:00' + DESFASE_GT)
+    .lte('creado_en', hasta + 'T23:59:59' + DESFASE_GT)
+    .order('creado_en', { ascending: true })
+    .limit(5000);
+
+  if (error) {
+    dias.innerHTML = '<div class="rev-dias-lbl">No se pudo cargar.<br>' + esc(error.message) + '</div>';
+    return;
+  }
+  revRegistros = data || [];
+  pintarRevision();
+}
+
+function pintarRevision() {
+  const act = REV_ACTIVIDADES.find(a => a.id === revActividad);
+  const aplicaAreas = MAPA.permiteAreas(act.id);
+  const propios = (revRegistros || []).filter(r => r.actividad === act.id);
+
+  document.querySelectorAll('#rev-tabs .rev-tab').forEach(function (t) {
+    const suya = t.dataset.act === act.id;
+    t.classList.toggle('activa', suya);
+    t.style.borderColor = suya ? revColor(act) : '';
+  });
+
+  // Cada reporte que incluye el sector cuenta como una vez trabajado.
+  const fechas = {};
+  propios.forEach(function (r) {
+    const dia = fechaGT(new Date(r.creado_en));
+    (r.sectores || []).forEach(id => (fechas[id] = fechas[id] || []).push(dia));
+  });
+
+  let paneles = 0, areas = 0, repetidos = 0;
+  document.querySelectorAll('#mapa-rev [data-id]').forEach(function (c) {
+    const id = c.dataset.id;
+    const esArea = c.dataset.tipo !== 'panel';
+    const nombre = esArea ? MAPA.nombre(id) : id;
+    const lista = fechas[id] || [];
+    c.classList.toggle('no-aplica', esArea && !aplicaAreas);
+
+    if (!lista.length) {
+      c.style.background = '';
+      c.style.borderColor = '';
+      c.style.color = '';
+      c.title = nombre + ' · sin ' + act.nombre.toLowerCase() + ' en el rango';
+      return;
+    }
+    if (esArea) areas++; else paneles++;
+    if (lista.length > 1) repetidos++;
+
+    c.style.background = lista.length > 1 ? revAshurado(act) : revColor(act);
+    c.style.borderColor = revColor(act);
+    if (esArea) c.style.color = '#ffffff';
+    c.title = nombre + ' · ' + act.nombre + ' ' + lista.length +
+              (lista.length === 1 ? ' vez' : ' veces') + ': ' + lista.join(', ');
+  });
+
+  document.getElementById('rev-leyenda').innerHTML =
+    '<span><i style="background:' + revColor(act) + ';"></i>una vez</span>' +
+    '<span><i style="background:' + revAshurado(act) + ';"></i>más de una vez <b>' + repetidos + '</b></span>' +
+    '<span>paneles <b>' + paneles + '</b> de ' + MAPA.TOTAL_SECTORES + '</span>' +
+    (aplicaAreas
+      ? '<span>áreas <b>' + areas + '</b> de ' + MAPA.TOTAL_AREAS + '</span>'
+      : '<span>las áreas no se lavan</span>');
+
+  // Columna: los días del rango en que hubo esta actividad, con cuántos
+  // sectores se reportaron (suma de reportes, sin descontar repeticiones).
+  const porDia = {};
+  propios.forEach(function (r) {
+    const dia = fechaGT(new Date(r.creado_en));
+    porDia[dia] = (porDia[dia] || 0) + (r.sectores || []).length;
+  });
+  const diasOrden = Object.keys(porDia).sort().reverse();
+  document.getElementById('rev-dias').innerHTML =
+    '<div class="rev-dias-lbl">' + esc(act.nombre) + ' · ' + propios.length +
+      (propios.length === 1 ? ' reporte' : ' reportes') + '</div>' +
+    (diasOrden.length
+      ? diasOrden.map(d => '<div class="rev-dia"><span>' + esc(d) + '</span><span>' +
+          porDia[d] + ' sect.</span></div>').join('')
+      : '<div class="rev-dia"><span>Sin registros en el rango</span></div>');
 }
 
 /* ================= INSUMOS ================= */
