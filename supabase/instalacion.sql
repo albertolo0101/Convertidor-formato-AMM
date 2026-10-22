@@ -253,6 +253,15 @@ create index if not exists registros_actividad_creado_idx
 create index if not exists registros_actividad_revision_idx
   on public.registros_actividad (creado_en desc) where requiere_revision;
 
+-- Anulacion (22 oct 2026). Un reporte cargado por error —por ejemplo, un sector
+-- equivocado— se ANULA desde el panel, no se borra: deja de contar para la
+-- planificacion pero queda a la vista con quien lo anulo, cuando y por que.
+-- Un registro que desaparece sin dejar rastro no sirve como control. Se puede
+-- restaurar si se anulo el que no era.
+alter table public.registros_actividad add column if not exists anulado_en     timestamptz;
+alter table public.registros_actividad add column if not exists anulado_por    text;
+alter table public.registros_actividad add column if not exists anulado_motivo text;
+
 
 -- ----------------------------------------------------------------------------
 -- Visitas — solo registro de llegada, sin marcar salida

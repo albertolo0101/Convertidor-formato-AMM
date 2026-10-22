@@ -73,6 +73,8 @@ Deno.serve(async (req: Request) => {
     .from("registros_actividad")
     .select("creado_en, tipo, actividad, sectores, categorias")
     .gte("creado_en", desde)
+    // Los anulados desde el panel (sector equivocado, etc.) no pintan el mapa
+    .is("anulado_en", null)
     .order("creado_en", { ascending: false });
 
   if (error) return json({ ok: false, error: "No se pudo leer el historial" }, 500);

@@ -115,6 +115,10 @@ button,select,input{font-family:var(--mono);}
 /* ---------- Tarjetas de registro ---------- */
 .tarjeta{background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:12px;}
 .tarjeta.marcada{border-color:var(--yellow);background:rgba(255,209,102,.05);}
+.tarjeta.anulada{opacity:.5;border-style:dashed;}
+.tarjeta.anulada .tarjeta-tit{text-decoration:line-through;}
+.btn.peligro:hover{border-color:var(--red);color:var(--red);}
+.anulado-txt{font-family:var(--mono);font-size:11px;color:var(--red);margin-top:11px;}
 .tarjeta-hdr{display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
 .tarjeta-fecha{font-family:var(--mono);font-size:11px;color:var(--dim);}
 .tarjeta-tit{font-family:var(--mono);font-size:14px;color:var(--bright);font-weight:600;}
@@ -216,7 +220,10 @@ button,select,input{font-family:var(--mono);}
         Cada reporte de campo se puede ver en el mapa de la planta, con lo
         trabajado resaltado. Los marcados en amarillo son actividades fuera del
         mapa &mdash; inversores, subestación u otros; quedan señalados hasta que
-        los marques como revisados.
+        los marques como revisados.<br>
+        Un reporte cargado por error (por ejemplo, un sector equivocado) se
+        <b>anula</b>: deja de contar en el mapa de planificación, pero queda
+        aquí tachado con quién lo anuló y por qué. Se puede restaurar.
       </div>
     </div>
 
@@ -665,13 +672,15 @@ async function cargarActividad() {
   ACTIVIDAD_CARGADA = {};
   filas.forEach(function (f) { ACTIVIDAD_CARGADA[f.id] = f; });
 
-  const pendientes = filas.filter(f => f.requiere_revision && !f.revisado_en).length;
+  const pendientes = filas.filter(f => f.requiere_revision && !f.revisado_en && !f.anulado_en).length;
+  const anulados = filas.filter(f => f.anulado_en).length;
 
   actualizarChapa('chapa-actividad', pendientes);
 
   document.getElementById('resumen-actividad').innerHTML =
-    'Reportes <b>' + filas.length + '</b>' +
-    (pendientes ? ' · Sin revisar <b>' + pendientes + '</b>' : '');
+    'Reportes <b>' + (filas.length - anulados) + '</b>' +
+    (pendientes ? ' · Sin revisar <b>' + pendientes + '</b>' : '') +
+    (anulados ? ' · Anulados <b>' + anulados + '</b>' : '');
 
   if (!filas.length) {
     cont.innerHTML = '<div class="vacio">Todavía no hay reportes de actividad.</div>';
@@ -679,7 +688,8 @@ async function cargarActividad() {
   }
 
   cont.innerHTML = filas.map(function (f) {
-    const sinRevisar = f.requiere_revision && !f.revisado_en;
+    const anulado = !!f.anulado_en;
+    const sinRevisar = f.requiere_revision && !f.revisado_en && !anulado;
 
     let titulo, cuerpo;
     if (f.tipo === 'sectores') {
@@ -712,13 +722,25 @@ async function cargarActividad() {
       acciones += '<button class="btn" id="btn-mapa-' + f.id +
                   '" onclick="verEnMapa(&quot;' + f.id + '&quot;)">Ver en el mapa</button>';
     }
-    if (sinRevisar) {
-      acciones = '<button class="btn primario" onclick="marcarRevisado(\'' + f.id + '\')">Marcar revisado</button>';
-    } else if (f.revisado_en) {
-      acciones = '<span class="etiqueta lista">Revisado ' + esc(fechaGT(new Date(f.revisado_en))) + '</span>';
+    if (anulado) {
+      acciones += '<span class="etiqueta revision">Anulado</span>' +
+                  '<button class="btn" onclick="restaurarActividad(\'' + f.id + '\')">Restaurar</button>';
+    } else {
+      if (sinRevisar) {
+        acciones += '<button class="btn primario" onclick="marcarRevisado(\'' + f.id + '\')">Marcar revisado</button>';
+      } else if (f.revisado_en) {
+        acciones += '<span class="etiqueta lista">Revisado ' + esc(fechaGT(new Date(f.revisado_en))) + '</span>';
+      }
+      acciones += '<button class="btn peligro" onclick="anularActividad(\'' + f.id + '\')">Anular</button>';
     }
 
-    return '<div class="tarjeta' + (sinRevisar ? ' marcada' : '') + '">' +
+    const pieAnulado = anulado
+      ? '<div class="anulado-txt">Anulado ' + esc(fechaHoraGT(f.anulado_en)) +
+        (f.anulado_por ? ' por ' + esc(f.anulado_por) : '') +
+        (f.anulado_motivo ? ' — ' + esc(f.anulado_motivo) : '') + '</div>'
+      : '';
+
+    return '<div class="tarjeta' + (sinRevisar ? ' marcada' : '') + (anulado ? ' anulada' : '') + '">' +
       '<div class="tarjeta-hdr">' +
         '<span class="tarjeta-fecha">' + esc(fechaHoraGT(f.creado_en)) + '</span>' +
         titulo +
@@ -726,6 +748,7 @@ async function cargarActividad() {
       '</div>' +
       cuerpo +
       (f.notas ? '<div class="notas-txt">' + esc(f.notas) + '</div>' : '') +
+      pieAnulado +
       '</div>';
   }).join('');
 }
@@ -775,6 +798,48 @@ async function marcarRevisado(id) {
 
   if (error) {
     alert('No se pudo marcar como revisado: ' + error.message);
+    return;
+  }
+  cargarActividad();
+}
+
+/**
+ * Anula un reporte cargado por error. No se borra: deja de pintar el mapa de
+ * planificación pero queda tachado en el panel con quién, cuándo y por qué.
+ */
+async function anularActividad(id) {
+  const motivo = prompt(
+    'Anular este reporte: dejará de contar en el mapa de planificación.\n\n' +
+    'Motivo (por ejemplo: "sector equivocado, se reportó de nuevo"):');
+  if (motivo === null) return;   // canceló
+
+  const { data: { session } } = await db.auth.getSession();
+  const { error } = await db
+    .from('registros_actividad')
+    .update({
+      anulado_en: new Date().toISOString(),
+      anulado_por: session ? session.user.email : null,
+      anulado_motivo: motivo.trim().slice(0, 500) || null,
+    })
+    .eq('id', id);
+
+  if (error) {
+    alert('No se pudo anular: ' + error.message);
+    return;
+  }
+  cargarActividad();
+}
+
+async function restaurarActividad(id) {
+  if (!confirm('¿Restaurar este reporte? Volverá a contar en el mapa de planificación.')) return;
+
+  const { error } = await db
+    .from('registros_actividad')
+    .update({ anulado_en: null, anulado_por: null, anulado_motivo: null })
+    .eq('id', id);
+
+  if (error) {
+    alert('No se pudo restaurar: ' + error.message);
     return;
   }
   cargarActividad();
@@ -906,7 +971,7 @@ function actualizarChapa(id, cantidad) {
 async function contarPendientes() {
   const [act, ins] = await Promise.all([
     db.from('registros_actividad').select('id', { count: 'exact', head: true })
-      .eq('requiere_revision', true).is('revisado_en', null),
+      .eq('requiere_revision', true).is('revisado_en', null).is('anulado_en', null),
     db.from('solicitudes_insumos').select('id', { count: 'exact', head: true })
       .eq('estado', 'pendiente'),
   ]);
