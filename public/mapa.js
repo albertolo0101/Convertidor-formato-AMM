@@ -302,7 +302,7 @@
   // asi que separarlas en la leyenda con la misma muestra no diria nada. Lo
   // que el borde distingue es lo que no se camina igual: drenajes y calle.
   const LEYENDA =
-    '<span><i></i>Paneles y rondas antifuego</span>' +
+    '<span><i></i>Mesas y rondas antifuego</span>' +
     '<span><i class="punteado"></i>Drenajes, subestación y calle</span>' +
     '<span>Las áreas solo se fumigan o se podan</span>';
 

@@ -688,3 +688,10 @@ de fechas libre, una actividad a la vez, solo el **tono fuerte** de cada rubro
 mas de un reporte del rango. Lee la tabla directo con la sesion de admin (RLS);
 no usa ninguna Edge Function. Cuenta reportes, no dias: dos reportes del mismo
 sector el mismo dia salen ashurados, y eso sirve para detectar duplicados.
+
+## Terminologia: mesas, no paneles
+
+Cada sector del mapa (`C1-A1`…) es una **mesa**: 192 mesas, de 54 paneles cada
+una. En la interfaz se dice "mesas". Es solo redaccion: en el codigo siguen
+`data-tipo="panel"`, variables `paneles` y el campo `paneles` de la respuesta de
+`registrar`; no hace falta renombrarlos.

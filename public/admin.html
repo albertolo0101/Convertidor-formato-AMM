@@ -756,7 +756,7 @@ async function cargarActividad() {
 
       titulo = '<span class="etiqueta actividad">' + esc(f.actividad) + '</span>' +
                '<span class="tarjeta-tit">' +
-                 paneles.length + (paneles.length === 1 ? ' panel' : ' paneles') +
+                 paneles.length + (paneles.length === 1 ? ' mesa' : ' mesas') +
                  (areas.length ? ' · ' + areas.length + (areas.length === 1 ? ' área' : ' áreas') : '') +
                '</span>';
 
@@ -764,12 +764,12 @@ async function cargarActividad() {
         (areas.length
           ? '<b>Áreas</b> ' + esc(areas.map(id => MAPA.area(id).etiqueta).join('  ·  ')) + '<br>'
           : '') +
-        (paneles.length ? '<b>Paneles</b> ' + esc(paneles.join('  ·  ')) : '') +
+        (paneles.length ? '<b>Mesas</b> ' + esc(paneles.join('  ·  ')) : '') +
         '</div>' +
         '<div class="mapa-reg" id="mapa-reg-' + f.id + '" style="display:none;"></div>';
     } else {
       const cats = (f.categorias || []).map(c => NOMBRE_CATEGORIA[c] || c).join(' · ');
-      titulo = '<span class="etiqueta revision">Fuera de paneles</span>' +
+      titulo = '<span class="etiqueta revision">Fuera del mapa</span>' +
                '<span class="tarjeta-tit">' + esc(cats) + '</span>';
       cuerpo = '';
     }
@@ -1027,7 +1027,7 @@ function pintarRevision() {
   document.getElementById('rev-leyenda').innerHTML =
     '<span><i style="background:' + revColor(act) + ';"></i>una vez</span>' +
     '<span><i style="background:' + revAshurado(act) + ';"></i>más de una vez <b>' + repetidos + '</b></span>' +
-    '<span>paneles <b>' + paneles + '</b> de ' + MAPA.TOTAL_SECTORES + '</span>' +
+    '<span>mesas <b>' + paneles + '</b> de ' + MAPA.TOTAL_SECTORES + '</span>' +
     (aplicaAreas
       ? '<span>áreas <b>' + areas + '</b> de ' + MAPA.TOTAL_AREAS + '</span>'
       : '<span>las áreas no se lavan</span>');

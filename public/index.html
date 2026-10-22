@@ -333,7 +333,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
       <div id="mapa"></div>
       <div class="mapa-pie mp-leyenda" id="mapa-leyenda"></div>
       <div class="mapa-pie">
-        <span>Paneles: <b id="cuenta-sectores">0</b></span>
+        <span>Mesas: <b id="cuenta-sectores">0</b></span>
         <span>Áreas: <b id="cuenta-areas">0</b></span>
         <span>Tocá una letra o un número para toda la fila o columna</span>
         <button class="btn-limpiar" onclick="limpiarSectores()">Limpiar</button>
@@ -1036,7 +1036,7 @@ async function enviarActividad() {
       const areas = r.datos.areas !== undefined ? r.datos.areas : areasSeleccionadas().length;
       const paneles = r.datos.paneles !== undefined ? r.datos.paneles : r.datos.sectores - areas;
       mostrarOk('Reporte ingresado',
-        paneles + ' paneles' + (areas ? ' · ' + areas + ' áreas' : '') + ' · ' + actividad);
+        paneles + ' mesas' + (areas ? ' · ' + areas + ' áreas' : '') + ' · ' + actividad);
     }
   }
 }
@@ -1231,7 +1231,7 @@ function pintarLeyenda(act, trabajados, areas, aplicaAreas, ventana) {
   document.getElementById('plan-leyenda').innerHTML =
     '<span>' + act.nombre + '</span>' +
     '<span class="plan-escala">hoy ' + escala + ' ' + ventana + ' días</span>' +
-    '<span>paneles <b>' + trabajados + '</b> de ' + PLAN_TOTAL_SECTORES +
+    '<span>mesas <b>' + trabajados + '</b> de ' + PLAN_TOTAL_SECTORES +
       ' · pendientes <b>' + (PLAN_TOTAL_SECTORES - trabajados) + '</b></span>' +
     (aplicaAreas
       ? '<span>áreas <b>' + areas + '</b> de ' + PLAN_TOTAL_AREAS +
